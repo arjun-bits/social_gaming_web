@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Global resets ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: #121212;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ── Neon glow utilities ── */
+.neon-pink  { box-shadow: 0 0 10px #FF007F, 0 0 30px rgba(255,0,127,0.4); }
+.neon-blue  { box-shadow: 0 0 10px #00E5FF, 0 0 30px rgba(0,229,255,0.4); }
+.neon-red   { box-shadow: 0 0 10px #FF0000, 0 0 30px rgba(255,0,0,0.4); }
+.border-neon-pink { border-color: #FF007F !important; }
+.border-neon-blue { border-color: #00E5FF !important; }
+
+/* ── Card flip animation ── */
+.card-wrap { perspective: 800px; }
+.card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4,0,0.2,1);
+  width: 100%; height: 100%;
+}
+.card-inner.flipped { transform: rotateY(180deg); }
+.card-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 0.5rem;
+}
+.card-back { transform: rotateY(180deg); }
+
+/* ── Team colours ── */
+.team-teamA  { background: #00E5FF; color: #121212; }
+.team-teamB  { background: #FF007F; color: #fff; }
+.team-neutral { background: #6B7280; color: #fff; }
+.team-assassin { background: #000; border: 2px solid #FF0000; }
+
+/* ── Clue overlay animation ── */
+@keyframes clueIn  { from { opacity:0; transform: scale(0.6); } to { opacity:1; transform: scale(1); } }
+@keyframes clueOut { from { opacity:1; } to { opacity:0; } }
+.clue-overlay-enter { animation: clueIn 0.35s ease-out forwards; }
+.clue-overlay-exit  { animation: clueOut 0.4s ease-in forwards; }
+
+/* ── Hover pulse on TV card ── */
+@keyframes borderPulse {
+  0%,100% { opacity:1; } 50% { opacity:0.4; }
+}
+.hover-pulse { animation: borderPulse 0.9s ease-in-out infinite; }
+
+/* ── Landing page (keep existing) ── */
+.landing-container { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+.glass-panel { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:1.25rem; padding:2.5rem; backdrop-filter:blur(12px); }
+.input-group { display:flex; flex-direction:column; gap:0.75rem; }
+.input-group input { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15); border-radius:0.75rem; padding:0.85rem 1.2rem; color:#fff; font-size:1.1rem; outline:none; }
+.input-group input:focus { border-color:#00E5FF; }
+.primary-btn { background:linear-gradient(135deg,#00E5FF,#007AFF); color:#000; font-weight:700; border:none; border-radius:0.75rem; padding:0.85rem 1.5rem; cursor:pointer; transition:opacity 0.2s; }
+.primary-btn:hover { opacity:0.85; }
+.primary-btn:disabled { opacity:0.4; cursor:not-allowed; }
+.secondary-btn { background:transparent; color:#00E5FF; border:1px solid #00E5FF; border-radius:0.75rem; padding:0.85rem 1.5rem; cursor:pointer; font-weight:600; transition:all 0.2s; }
+.secondary-btn:hover { background:rgba(0,229,255,0.08); }
+.divider { text-align:center; color:#6B7280; padding:0.75rem 0; font-size:0.9rem; }
