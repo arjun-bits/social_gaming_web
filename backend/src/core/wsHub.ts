@@ -2,7 +2,7 @@ import WebSocket from 'ws';
 import { Room } from '../models/room';
 import { Player } from '../models/player';
 import { GameInterface } from '../games/gameInterface';
-import { SSGameEngine } from '../games/secret_signals/engine';
+import { createGameEngine } from '../games/gameRegistry';
 import { GameMessage, MessageType } from './messageProtocol';
 
 export class WSHub {
@@ -94,7 +94,6 @@ export class WSHub {
             const mocks = ['Alice', 'Bob', 'Charlie', 'Dave'];
             mocks.forEach((name, i) => {
                 const id = `mock_${i}`;
-                // Remove any existing mock player with same id first
                 this.room.players = this.room.players.filter(p => p.uuid !== id);
                 const p = new Player(id, name, false);
                 p.isConnected = true;
@@ -109,25 +108,40 @@ export class WSHub {
             return;
         }
 
+        if (isHost && action === 'selectGame') {
+            // Pre-select a game in the lobby (before starting)
+            if (msg.payload.gameId) {
+                this.initGame(msg.payload.gameId);
+            }
+            return;
+        }
+
         if (!this.game) return;
         this.game.handleAction(msg.playerId, msg.payload);
         this._broadcastFullState();
     }
 
     public initGame(gameId: string) {
-        if (gameId === 'secret_signals') {
-            this.game = new SSGameEngine();
-            this.game.init();
-            this.room.currentGame = gameId;
-            this._broadcastFullState();
+        const engine = createGameEngine(gameId);
+        if (!engine) {
+            console.warn(`Unknown gameId: ${gameId}`);
+            return;
         }
+        this.game = engine;
+        this.game.init();
+        this.room.currentGame = gameId;
+        this._broadcastFullState();
     }
 
     public startGame(gameId: string) {
-        if (!this.game) this.initGame(gameId);
-        const playerIds = this.room.players.map(p => p.uuid).filter(id => id !== 'HOST');
+        if (!this.game || this.room.currentGame !== gameId) {
+            this.initGame(gameId);
+        }
+        // Assign players (including HOST so they can participate)
+        const playerIds = this.room.players.map(p => p.uuid);
         this.game!.assignPlayers(playerIds);
-        this.game!.startPlaying();
+        // Pass usedWords so each board picks fresh words
+        this.game!.startPlaying(this.room.usedWords);
         this._broadcastFullState();
     }
 
@@ -138,6 +152,12 @@ export class WSHub {
 
         if (this.game) {
             basePayload.gameId = this.game.gameId;
+            basePayload.gameMeta = {
+                displayName: this.game.displayName,
+                description: this.game.description,
+                minPlayers: this.game.minPlayers,
+                maxPlayers: this.game.maxPlayers,
+            };
         }
 
         for (const [playerId, client] of this.clients.entries()) {

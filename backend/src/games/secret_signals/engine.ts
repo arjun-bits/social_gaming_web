@@ -1,5 +1,5 @@
 import { GameInterface } from '../gameInterface';
-import { SecretSignalsState, CardTeam, GamePhase, TurnPhase, WordCard, Clue, wordCategories } from './models';
+import { SecretSignalsState, CardTeam, GamePhase, TurnPhase, WordCard, Clue, wordCategories, pickBoardWords } from './models';
 
 export class SSGameEngine implements GameInterface {
     state: SecretSignalsState;
@@ -12,9 +12,21 @@ export class SSGameEngine implements GameInterface {
         return 'secret_signals';
     }
 
+    get displayName(): string {
+        return 'Secret Signals';
+    }
+
+    get description(): string {
+        return 'Codenames-style word guessing — two teams battle it out with clues and deduction.';
+    }
+
+    get minPlayers(): number { return 2; }
+    get maxPlayers(): number { return 16; }
+
     get isActive(): boolean {
         return this.state.phase === GamePhase.playing;
     }
+
 
     init(): void {
         this.state = new SecretSignalsState({
@@ -30,20 +42,34 @@ export class SSGameEngine implements GameInterface {
         this.autoAssignTeams(playerIds);
     }
 
-    startPlaying(): void {
-        this.generateBoard();
+    startPlaying(usedWords?: Set<string>): void {
+        this.generateBoard(usedWords);
     }
+
 
     handleAction(playerId: string, payload: any): void {
         const action = payload.action;
         if (!action) return;
 
         switch (action) {
+            case 'joinRole':
+                if (payload.team) {
+                    const cardTeam = payload.team === 'teamA' ? CardTeam.teamA : CardTeam.teamB;
+                    this.assignTeam(playerId, cardTeam, !!payload.isLeader);
+                }
+                break;
             case 'joinTeam':
                 const team = payload.team;
                 if (team) {
                     const cardTeam = team === 'teamA' ? CardTeam.teamA : CardTeam.teamB;
                     this.assignTeam(playerId, cardTeam);
+                }
+                break;
+            case 'joinRole':
+                const roleTeam = payload.team === 'teamA' ? CardTeam.teamA : CardTeam.teamB;
+                this.assignTeam(playerId, roleTeam, !!payload.isLeader);
+                if (payload.isLeader) {
+                    this._becomeSpymaster(playerId);
                 }
                 break;
             case 'becomeSpymaster':
@@ -104,22 +130,25 @@ export class SSGameEngine implements GameInterface {
         return this.state.toLeaderJson();
     }
 
-    generateBoard(): void {
-        const wordsToUse = wordCategories[this.state.selectedCategory] || wordCategories['Standard'];
-        const shuffledWords = [...wordsToUse].sort(() => Math.random() - 0.5);
-        const selectedWords = shuffledWords.slice(0, 25);
+    /** usedWords is passed in from the Room so word history persists across games */
+    generateBoard(usedWords?: Set<string>): void {
+        const sessionWords = usedWords ?? new Set<string>();
+        const selectedWords = pickBoardWords(this.state.selectedCategory, sessionWords);
 
-        const teams: CardTeam[] = [
+        // Fisher-Yates already used inside pickBoardWords; shuffle teams here too
+        const teamPool: CardTeam[] = [
             ...Array(9).fill(CardTeam.teamA),
             ...Array(8).fill(CardTeam.teamB),
             ...Array(7).fill(CardTeam.neutral),
-            CardTeam.assassin
-        ].sort(() => Math.random() - 0.5);
-
-        const grid: WordCard[] = [];
-        for (let i = 0; i < 25; i++) {
-            grid.push(new WordCard(selectedWords[i], teams[i]));
+            CardTeam.assassin,
+        ];
+        // Fisher-Yates for team assignment
+        for (let i = teamPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [teamPool[i], teamPool[j]] = [teamPool[j], teamPool[i]];
         }
+
+        const grid: WordCard[] = selectedWords.map((word, i) => new WordCard(word, teamPool[i]));
 
         this.state = new SecretSignalsState({
             grid,
@@ -153,12 +182,19 @@ export class SSGameEngine implements GameInterface {
     }
 
     autoAssignTeams(playerIds: string[]): void {
-        const shuffled = [...playerIds].sort(() => Math.random() - 0.5);
-        let teamAHasLeader = false;
-        let teamBHasLeader = false;
+        const unassigned = playerIds.filter(id => !this.state.playerTeams[id]);
+        const shuffled = [...unassigned].sort(() => Math.random() - 0.5);
+
+        // Check if teams already have leaders
+        let teamAHasLeader = Object.keys(this.state.playerIsLeader).some(id => this.state.playerIsLeader[id] && this.state.playerTeams[id] === CardTeam.teamA);
+        let teamBHasLeader = Object.keys(this.state.playerIsLeader).some(id => this.state.playerIsLeader[id] && this.state.playerTeams[id] === CardTeam.teamB);
 
         for (let i = 0; i < shuffled.length; i++) {
-            const team = i % 2 === 0 ? CardTeam.teamA : CardTeam.teamB;
+            // Count current team sizes to balance
+            const aCount = Object.values(this.state.playerTeams).filter(t => t === CardTeam.teamA).length;
+            const bCount = Object.values(this.state.playerTeams).filter(t => t === CardTeam.teamB).length;
+            
+            const team = aCount <= bCount ? CardTeam.teamA : CardTeam.teamB;
             let isLeader = false;
 
             if (team === CardTeam.teamA && !teamAHasLeader) {
@@ -171,6 +207,15 @@ export class SSGameEngine implements GameInterface {
 
             this.assignTeam(shuffled[i], team, isLeader);
         }
+        
+        // Final sanity check for leaders: if no leader exists for a team, pick a random player from that team
+        [CardTeam.teamA, CardTeam.teamB].forEach(team => {
+            const teamMembers = playerIds.filter(id => this.state.playerTeams[id] === team);
+            const hasLeader = teamMembers.some(id => this.state.playerIsLeader[id]);
+            if (teamMembers.length > 0 && !hasLeader) {
+                this.assignTeam(teamMembers[0], team, true);
+            }
+        });
     }
 
     submitClue(playerId: string, word: string, count: number): boolean {

@@ -9,6 +9,7 @@ class WSClient {
     private reconnectTimeout: any = null;
     private intentionalClose = false;
     private reconnectDelay = 1000;
+    private lastState: any = null;
 
     connect(playerId: string, nickname: string, roomCode?: string) {
         this.playerId = playerId;
@@ -40,6 +41,7 @@ class WSClient {
             try {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'stateUpdate') {
+                    this.lastState = msg.payload;
                     this.listeners.forEach(cb => cb(msg.payload));
                 }
             } catch (e) {
@@ -65,6 +67,7 @@ class WSClient {
         this.intentionalClose = true;
         if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
         this.ws?.close();
+        this.lastState = null;
     }
 
     send(type: string, payload: any) {
@@ -86,6 +89,9 @@ class WSClient {
 
     subscribe(callback: GameStateCallback) {
         this.listeners.push(callback);
+        if (this.lastState) {
+            callback(this.lastState);
+        }
         return () => {
             this.listeners = this.listeners.filter(cb => cb !== callback);
         };
