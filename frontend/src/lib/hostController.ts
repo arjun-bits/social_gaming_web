@@ -72,8 +72,12 @@ class HostController {
     }
 
     private handleMessageFromPlayer(playerId: string, msg: any) {
-        if (msg.action === 'join') {
-            const nickname = msg.nickname || 'Player';
+        if (msg.type !== 'action') return;
+        const action = msg.payload;
+
+        if (action.action === 'join') {
+            console.log(`[P2P Host] Received join from ${playerId} with nickname ${action.nickname}`);
+            const nickname = action.nickname || 'Player';
             const existing = this.players.find(p => p.id === playerId);
             if (existing) {
                 existing.nickname = nickname;
@@ -86,7 +90,7 @@ class HostController {
         }
 
         if (this.game) {
-            this.game.handleAction(playerId, msg);
+            this.game.handleAction(playerId, action);
             this.broadcastState();
         }
     }
@@ -108,7 +112,10 @@ class HostController {
 
     public startGame() {
         if (this.game) {
-            const activePlayerIds = this.players.filter(p => p.isConnected).map(p => p.id);
+            // Exclude HOST — only real players should be assigned game roles
+            const activePlayerIds = this.players
+                .filter(p => p.isConnected && p.id !== 'HOST')
+                .map(p => p.id);
             this.game.assignPlayers(activePlayerIds);
             this.game.startPlaying(); // In real app, pass usedWords
             this.broadcastState();

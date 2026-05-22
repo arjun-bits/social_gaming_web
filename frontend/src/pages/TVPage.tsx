@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { wsClient } from '../lib/wsClient'
 import { p2pClient } from '../lib/p2pClient'
+import { TVView as TTRETVView } from '../games/ticket_europe/TVView'
 
 export function TVPage() {
   const { room } = useParams<{ room: string }>()
@@ -85,7 +86,8 @@ export function TVPage() {
       {isLobby && <TVLobbyView roomInfo={roomInfo} game={game} joinUrl={joinUrl} room={room!} />}
 
       {/* ── PLAYING STATE ── */}
-      {isPlaying && <TVGameView game={game} clueIsNew={!!clueIsNew} />}
+      {isPlaying && game.gameId !== 'ticket_europe' && <TVGameView game={game} clueIsNew={!!clueIsNew} />}
+      {isPlaying && game.gameId === 'ticket_europe' && <TTRETVView gameState={game.state.data} />}
 
       {/* ── GAME OVER STATE ── */}
       {isGameOver && <TVGameOverView game={game} roomInfo={roomInfo} />}

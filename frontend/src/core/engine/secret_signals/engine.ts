@@ -181,7 +181,9 @@ export class SSGameEngine implements GameInterface {
     }
 
     autoAssignTeams(playerIds: string[]): void {
-        const unassigned = playerIds.filter(id => !this.state.playerTeams[id]);
+        // Never assign HOST to a team — only real players
+        const realPlayers = playerIds.filter(id => id !== 'HOST');
+        const unassigned = realPlayers.filter(id => !this.state.playerTeams[id]);
         const shuffled = [...unassigned].sort(() => Math.random() - 0.5);
 
         // Check if teams already have leaders
@@ -209,7 +211,7 @@ export class SSGameEngine implements GameInterface {
         
         // Final sanity check for leaders: if no leader exists for a team, pick a random player from that team
         [CardTeam.teamA, CardTeam.teamB].forEach(team => {
-            const teamMembers = playerIds.filter(id => this.state.playerTeams[id] === team);
+            const teamMembers = realPlayers.filter(id => this.state.playerTeams[id] === team);
             const hasLeader = teamMembers.some(id => this.state.playerIsLeader[id]);
             if (teamMembers.length > 0 && !hasLeader) {
                 this.assignTeam(teamMembers[0], team, true);

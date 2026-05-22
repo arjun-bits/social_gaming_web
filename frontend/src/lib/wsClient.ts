@@ -13,6 +13,7 @@ class WSClient {
     private reconnectDelay = 1000;
     private lastState: any = null;
     private onConnectCb?: () => void;
+    private messageQueue: string[] = [];
 
     connect(playerId: string, nickname: string, roomCode?: string, onConnect?: () => void) {
         this.playerId = playerId;
@@ -39,6 +40,13 @@ class WSClient {
             console.log(`[WS] Connected to room ${this.roomCode}`);
             this.reconnectDelay = 1000; // reset backoff
             this.send('join', { nickname: this.nickname });
+            
+            // Flush queued messages
+            while (this.messageQueue.length > 0) {
+                const msg = this.messageQueue.shift();
+                if (msg) this.ws?.send(msg);
+            }
+            
             if (this.onConnectCb) this.onConnectCb();
         };
 
@@ -77,18 +85,25 @@ class WSClient {
         if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
         this.ws?.close();
         this.lastState = null;
+        this.messageQueue = [];
     }
 
     send(type: string, payload: any) {
+        const msgStr = JSON.stringify({
+            type,
+            payload,
+            playerId: this.playerId,
+            timestamp: Date.now(),
+        });
+        
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-                type,
-                payload,
-                playerId: this.playerId,
-                timestamp: Date.now(),
-            }));
+            this.ws.send(msgStr);
         } else {
-            console.warn('[WS] Cannot send — not connected');
+            console.log(`[WS] Not connected, queueing message: ${type}`);
+            this.messageQueue.push(msgStr);
+            if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+                this._openSocket();
+            }
         }
     }
 

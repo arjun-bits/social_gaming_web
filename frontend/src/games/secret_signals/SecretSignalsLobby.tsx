@@ -7,11 +7,11 @@ export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAut
     onAutoAssign: () => void
 }) {
     // Categorize players
-    const unassigned = players.filter(p => !playerTeams[p.uuid])
-    const teamA = players.filter(p => playerTeams[p.uuid] === 'teamA')
-    const teamB = players.filter(p => playerTeams[p.uuid] === 'teamB')
+    const unassigned = players.filter(p => !playerTeams[p.id])
+    const teamA = players.filter(p => playerTeams[p.id] === 'teamA')
+    const teamB = players.filter(p => playerTeams[p.id] === 'teamB')
 
-    const getRoleStr = (p: any) => playerIsLeader[p.uuid] ? 'Spymaster' : 'Operative'
+    const getRoleStr = (p: any) => playerIsLeader[p.id] ? 'Spymaster' : 'Operative'
 
     return (
         <div className="flex flex-col gap-6 animate-slide-up">
@@ -53,12 +53,12 @@ export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAut
                         <div className="flex flex-col gap-2">
                             <span className="text-[10px] uppercase tracking-[0.2em] text-[#00E5FF]/60">Spymaster</span>
                             <div className="flex flex-wrap gap-2">
-                                {teamA.filter(p => playerIsLeader[p.uuid]).map(p => (
-                                    <div key={p.uuid} className="px-3 py-1.5 rounded-lg bg-[#00E5FF] text-black font-bold text-sm shadow-[0_0_10px_#00E5FF88]">
+                                {teamA.filter(p => playerIsLeader[p.id]).map(p => (
+                                    <div key={p.id} className="px-3 py-1.5 rounded-lg bg-[#00E5FF] text-black font-bold text-sm shadow-[0_0_10px_#00E5FF88]">
                                         {p.nickname}
                                     </div>
                                 ))}
-                                {teamA.filter(p => playerIsLeader[p.uuid]).length === 0 && (
+                                {teamA.filter(p => playerIsLeader[p.id]).length === 0 && (
                                     <div className="px-3 py-1.5 rounded-lg border border-dashed border-[#00E5FF]/30 text-[#00E5FF]/50 text-xs italic">Needs Spymaster</div>
                                 )}
                             </div>
@@ -66,12 +66,12 @@ export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAut
                         <div className="flex flex-col gap-2">
                             <span className="text-[10px] uppercase tracking-[0.2em] text-[#00E5FF]/60">Operatives</span>
                             <div className="flex flex-wrap gap-2">
-                                {teamA.filter(p => !playerIsLeader[p.uuid]).map(p => (
-                                    <div key={p.uuid} className="px-3 py-1.5 rounded-lg bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-sm">
+                                {teamA.filter(p => !playerIsLeader[p.id]).map(p => (
+                                    <div key={p.id} className="px-3 py-1.5 rounded-lg bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-sm">
                                         {p.nickname}
                                     </div>
                                 ))}
-                                {teamA.filter(p => !playerIsLeader[p.uuid]).length === 0 && (
+                                {teamA.filter(p => !playerIsLeader[p.id]).length === 0 && (
                                     <div className="px-3 py-1.5 rounded-lg border border-dashed border-[#00E5FF]/30 text-[#00E5FF]/50 text-xs italic">Needs Operatives</div>
                                 )}
                             </div>
@@ -89,12 +89,12 @@ export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAut
                         <div className="flex flex-col gap-2">
                             <span className="text-[10px] uppercase tracking-[0.2em] text-[#FF007F]/60">Spymaster</span>
                             <div className="flex flex-wrap gap-2">
-                                {teamB.filter(p => playerIsLeader[p.uuid]).map(p => (
-                                    <div key={p.uuid} className="px-3 py-1.5 rounded-lg bg-[#FF007F] text-white font-bold text-sm shadow-[0_0_10px_#FF007F88]">
+                                {teamB.filter(p => playerIsLeader[p.id]).map(p => (
+                                    <div key={p.id} className="px-3 py-1.5 rounded-lg bg-[#FF007F] text-white font-bold text-sm shadow-[0_0_10px_#FF007F88]">
                                         {p.nickname}
                                     </div>
                                 ))}
-                                {teamB.filter(p => playerIsLeader[p.uuid]).length === 0 && (
+                                {teamB.filter(p => playerIsLeader[p.id]).length === 0 && (
                                     <div className="px-3 py-1.5 rounded-lg border border-dashed border-[#FF007F]/30 text-[#FF007F]/50 text-xs italic">Needs Spymaster</div>
                                 )}
                             </div>
@@ -102,12 +102,12 @@ export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAut
                         <div className="flex flex-col gap-2">
                             <span className="text-[10px] uppercase tracking-[0.2em] text-[#FF007F]/60">Operatives</span>
                             <div className="flex flex-wrap gap-2">
-                                {teamB.filter(p => !playerIsLeader[p.uuid]).map(p => (
-                                    <div key={p.uuid} className="px-3 py-1.5 rounded-lg bg-[#FF007F]/10 text-[#FF007F] border border-[#FF007F]/20 text-sm">
+                                {teamB.filter(p => !playerIsLeader[p.id]).map(p => (
+                                    <div key={p.id} className="px-3 py-1.5 rounded-lg bg-[#FF007F]/10 text-[#FF007F] border border-[#FF007F]/20 text-sm">
                                         {p.nickname}
                                     </div>
                                 ))}
-                                {teamB.filter(p => !playerIsLeader[p.uuid]).length === 0 && (
+                                {teamB.filter(p => !playerIsLeader[p.id]).length === 0 && (
                                     <div className="px-3 py-1.5 rounded-lg border border-dashed border-[#FF007F]/30 text-[#FF007F]/50 text-xs italic">Needs Operatives</div>
                                 )}
                             </div>

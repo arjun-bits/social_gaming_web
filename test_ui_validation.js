@@ -9,6 +9,10 @@ const puppeteer = require('puppeteer-core');
   
   try {
     const hostPage = await browser.newPage();
+    
+    hostPage.on('console', msg => console.log('PAGE LOG:', msg.text()));
+    hostPage.on('pageerror', err => console.log('PAGE ERROR:', err.toString()));
+
     console.log("[Test] Creating room as Host...");
     const randomRoom = 'TEST' + Math.floor(Math.random() * 10000);
     await hostPage.goto(`http://localhost:5173/lobby/${randomRoom}?name=Host`);

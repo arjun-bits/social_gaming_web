@@ -5,11 +5,14 @@
 
 import type { GameInterface } from '../core/engine/gameInterface';
 import { SSGameEngine } from '../core/engine/secret_signals/engine';
+import { TTREGameEngine } from '../core/engine/ticket_europe/engine';
 
 export function createGameEngine(gameId: string): GameInterface | null {
   switch (gameId) {
     case 'secret_signals':
       return new SSGameEngine();
+    case 'ticket_europe':
+      return new TTREGameEngine();
     default:
       return null;
   }
@@ -37,6 +40,16 @@ export const CLIENT_GAME_REGISTRY: GameClientMeta[] = [
     icon: '🕵️',
     tags: ['Word Game', 'Teams', '2–16 Players'],
     accentColor: '#00E5FF',
+  },
+  {
+    gameId: 'ticket_europe',
+    displayName: 'Ticket to Ride Europe',
+    description: 'Build train routes across an isometric map of Europe. Claim routes, build stations, and complete your destination tickets!',
+    minPlayers: 2,
+    maxPlayers: 5,
+    icon: '🚂',
+    tags: ['Strategy', 'Trains', '2–5 Players'],
+    accentColor: '#FF5733',
   },
   {
     gameId: 'neon_trivia',

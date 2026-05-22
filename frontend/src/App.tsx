@@ -53,19 +53,26 @@ function Landing() {
       </div>
 
       {/* Game Cards preview */}
-      <div className="w-full max-w-2xl mb-10 animate-slide-up" style={{ animationDelay: '60ms' }}>
+      <div className="w-full max-w-3xl mb-10 animate-slide-up relative" style={{ animationDelay: '60ms' }}>
         <p className="text-[9px] uppercase tracking-[0.35em] text-[#6B7280] text-center mb-4">Available Games</p>
-        <div className="grid grid-cols-3 gap-3">
-          {CLIENT_GAME_REGISTRY.map(meta => (
+        <div className="flex gap-4 overflow-x-auto pb-4 px-4 snap-x hide-scrollbar mask-edges">
+          {CLIENT_GAME_REGISTRY.map((meta, i) => (
             <div
               key={meta.gameId}
-              className={`rounded-2xl border p-4 text-center transition-all ${meta.comingSoon ? 'opacity-35 border-white/5' : 'border-white/10 hover:border-white/20 hover:-translate-y-0.5'}`}
-              style={{ background: 'rgba(255,255,255,0.02)' }}
+              className={`snap-center shrink-0 w-56 rounded-3xl p-6 border transition-all relative overflow-hidden flex flex-col items-center text-center
+                ${meta.comingSoon ? 'border-white/5 opacity-40 grayscale' : 'border-white/10 hover:border-[#00E5FF]/40 hover:-translate-y-1 bg-gradient-to-b from-white/5 to-transparent shadow-lg'}`}
             >
-              <div className="text-3xl mb-2">{meta.icon}</div>
-              <p className="font-poppins font-bold text-sm text-white leading-tight">{meta.displayName}</p>
-              {meta.comingSoon && <p className="text-[9px] text-[#4B5563] uppercase tracking-wider mt-1">Coming Soon</p>}
-              {!meta.comingSoon && <p className="text-[9px] text-[#6B7280] mt-1">{meta.tags[2]}</p>}
+              <div className="absolute -top-10 -right-10 text-[100px] opacity-[0.03] select-none pointer-events-none blur-sm">{meta.icon}</div>
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-4xl shadow-inner border border-white/5 mb-4"
+                   style={{ background: meta.comingSoon ? 'rgba(255,255,255,0.02)' : `linear-gradient(135deg, ${meta.accentColor}22 0%, transparent 100%)` }}>
+                {meta.icon}
+              </div>
+              <h3 className="font-poppins font-black text-lg text-white leading-tight mb-2">{meta.displayName}</h3>
+              {meta.comingSoon ? (
+                <span className="text-[9px] text-[#6B7280] uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">Coming Soon</span>
+              ) : (
+                <p className="text-[#6B7280] text-xs line-clamp-2">{meta.description}</p>
+              )}
             </div>
           ))}
         </div>

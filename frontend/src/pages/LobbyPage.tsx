@@ -37,7 +37,8 @@ export function LobbyPage() {
   }, [gameState?.room, gameState?.game, selectedGameId])
 
   const roomInfo = gameState?.room
-  const playersRaw = roomInfo?.players || []
+  // hostController stores players inside room.players; normalize uuid vs id
+  const playersRaw = gameState?.room?.players || gameState?.players || []
   // Normalize p.uuid and p.id since backend uses uuid and hostController uses id
   const normalizedPlayers = playersRaw.map((p: any) => ({
     ...p,
@@ -63,21 +64,22 @@ export function LobbyPage() {
       
       const unassigned = players.some((p: any) => !pTeams[p.uuid])
       if (unassigned) {
-        alert("Cannot start: Some players are unassigned.")
+        alert("Cannot start: Some players are unassigned. Please use Auto-Assign Teams first.")
         return
       }
 
+      // Use p.uuid consistently (normalized above)
       const teamASpies = players.filter((p: any) => pTeams[p.uuid] === 'teamA' && pLeader[p.uuid])
       const teamBSpies = players.filter((p: any) => pTeams[p.uuid] === 'teamB' && pLeader[p.uuid])
       const teamAOps = players.filter((p: any) => pTeams[p.uuid] === 'teamA' && !pLeader[p.uuid])
       const teamBOps = players.filter((p: any) => pTeams[p.uuid] === 'teamB' && !pLeader[p.uuid])
 
       if (teamASpies.length !== 1) {
-        alert("Cannot start: Blue team must have exactly 1 Spymaster. Currently has " + teamASpies.length + " (Players: " + players.map((p: any) => p.nickname + '(' + p.uuid + ')').join(', ') + ")")
+        alert("Cannot start: Blue team must have exactly 1 Spymaster (has " + teamASpies.length + "). Please re-run Auto-Assign.")
         return
       }
       if (teamBSpies.length !== 1) {
-        alert("Cannot start: Pink team must have exactly 1 Spymaster. Currently has " + teamBSpies.length)
+        alert("Cannot start: Pink team must have exactly 1 Spymaster (has " + teamBSpies.length + "). Please re-run Auto-Assign.")
         return
       }
       if (teamAOps.length < 1) {
@@ -106,7 +108,8 @@ export function LobbyPage() {
   }
 
   const handleAutoAssign = () => {
-    const playerIds = players.map((p: any) => p.uuid);
+    // Use p.uuid (normalized from backend's p.uuid or p.id)
+    const playerIds = players.filter((p: any) => p.uuid !== 'HOST').map((p: any) => p.uuid);
     hostController.handleLocalAction({ action: 'autoAssignTeams', playerIds });
   }
 
@@ -196,7 +199,7 @@ export function LobbyPage() {
         {/* Mock players (dev helper) */}
         <button
           onClick={() => hostController.addMockPlayers()}
-          className="w-full py-2 rounded-xl border border-white/5 text-[#4B5563] text-xs font-mono hover:bg-white/3 transition"
+          className="w-full py-2.5 rounded-xl border border-[#00E5FF]/30 text-[#00E5FF] text-xs font-bold hover:bg-[#00E5FF]/10 transition"
         >
           + Add Test Players
         </button>
@@ -261,18 +264,61 @@ export function LobbyPage() {
         {/* Content Body */}
         {!roomInfo?.isConfiguring ? (
           <>
-            {/* ── Game Selection Grid ── */}
-            <section>
-              <h2 className="text-[10px] uppercase tracking-[0.3em] text-[#6B7280] mb-4">Choose Game</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* ── Game Selection (Hero + Thumbnails) ── */}
+            <section className="flex flex-col gap-6">
+              <h2 className="text-[10px] uppercase tracking-[0.3em] text-[#6B7280]">Choose Game</h2>
+              
+              {/* Hero Selected Game */}
+              {selectedMeta && (
+                <div 
+                  className="w-full rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border border-white/10 relative overflow-hidden animate-slide-up"
+                  style={{ background: `radial-gradient(circle at 80% 20%, ${selectedMeta.accentColor}15 0%, #111118 60%)` }}
+                >
+                  <div className="absolute -top-10 -right-10 text-[180px] opacity-5 select-none pointer-events-none blur-sm">{selectedMeta.icon}</div>
+                  
+                  <div className="w-24 h-24 shrink-0 rounded-2xl flex items-center justify-center text-6xl shadow-xl border border-white/10"
+                       style={{ background: `linear-gradient(135deg, ${selectedMeta.accentColor}22 0%, transparent 100%)` }}>
+                    {selectedMeta.icon}
+                  </div>
+                  
+                  <div className="flex-1 text-center md:text-left z-10">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
+                      <h3 className="font-poppins font-black text-3xl text-white tracking-tight">{selectedMeta.displayName}</h3>
+                      <span className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold self-center md:self-auto border border-white/20 text-[#E5E7EB] bg-white/5 backdrop-blur-md">
+                        {selectedMeta.minPlayers}-{selectedMeta.maxPlayers} Players
+                      </span>
+                    </div>
+                    <p className="text-[#9CA3AF] text-sm leading-relaxed max-w-2xl mb-4">{selectedMeta.description}</p>
+                    
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                      {selectedMeta.tags.map(tag => (
+                        <span key={tag} className="px-2.5 py-1 rounded-lg text-[10px] uppercase tracking-wider font-bold"
+                              style={{ background: `${selectedMeta.accentColor}22`, color: selectedMeta.accentColor }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Other Games List */}
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar">
                 {CLIENT_GAME_REGISTRY.map((meta, i) => (
-                  <GameCard
+                  <div
                     key={meta.gameId}
-                    meta={meta}
-                    selected={selectedGameId === meta.gameId}
-                    onSelect={() => !meta.comingSoon && handleSelectGame(meta.gameId)}
-                    style={{ animationDelay: `${i * 60}ms` }}
-                  />
+                    onClick={() => !meta.comingSoon && handleSelectGame(meta.gameId)}
+                    className={`snap-start shrink-0 w-40 rounded-2xl p-4 border transition-all cursor-pointer flex flex-col items-center text-center gap-2
+                      ${selectedGameId === meta.gameId 
+                        ? 'border-[#00E5FF] bg-[#00E5FF]/10 scale-100' 
+                        : meta.comingSoon 
+                          ? 'border-white/5 opacity-40 grayscale cursor-not-allowed scale-95' 
+                          : 'border-white/10 hover:border-white/20 hover:bg-white/5 scale-95 hover:scale-100'}`}
+                  >
+                    <div className="text-3xl mb-1">{meta.icon}</div>
+                    <h4 className="font-poppins font-bold text-sm text-white leading-tight">{meta.displayName}</h4>
+                    {meta.comingSoon && <span className="text-[8px] bg-white/10 px-2 py-0.5 rounded-full uppercase tracking-widest text-[#6B7280]">Soon</span>}
+                  </div>
                 ))}
               </div>
             </section>
@@ -307,14 +353,14 @@ export function LobbyPage() {
           </>
         ) : (
           <section className="flex-1">
-            {selectedGameId === 'secret_signals' ? (
-              <SecretSignalsLobby 
+            {selectedGameId === 'secret_signals' && (
+              <SecretSignalsLobby
                 players={players}
                 playerTeams={game?.playerTeams || {}}
                 playerIsLeader={game?.playerIsLeader || {}}
                 onAutoAssign={handleAutoAssign}
               />
-            ) : (
+            ) || (
               <div className="flex items-center justify-center h-full text-[#6B7280] italic">
                 Game specific lobby coming soon...
               </div>
@@ -331,7 +377,6 @@ export function LobbyPage() {
                 background: `linear-gradient(135deg, ${selectedMeta?.accentColor ?? '#00E5FF'} 0%, #0077FF 100%)`,
                 boxShadow: `0 0 40px ${selectedMeta?.accentColor ?? '#00E5FF'}44`,
               }}
-              disabled={players.length < (selectedMeta?.minPlayers ?? 2)}
               onClick={handleConfigureGame}
             >
               CONFIGURE {selectedMeta?.displayName.toUpperCase() ?? 'GAME'}

@@ -62,7 +62,9 @@ export function HostView() {
   const isPlaying = game?.phase === 'playing'
   const isGameOver = game?.phase === 'gameOver'
 
-  const players = roomInfo?.players?.filter((p: any) => p.uuid !== 'HOST') || []
+  const playersRaw = gameState?.room?.players || gameState?.players || []
+  const normalizedPlayers = playersRaw.map((p: any) => ({ ...p, uuid: p.uuid || p.id }))
+  const players = normalizedPlayers.filter((p: any) => p.uuid !== 'HOST')
 
   const onReset = () => {
     hostController.resetGame()

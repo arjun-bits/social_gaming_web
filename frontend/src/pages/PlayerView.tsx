@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { wsClient } from '../lib/wsClient'
 import { p2pClient } from '../lib/p2pClient'
 import { getClientGameMeta } from '../games/gameRegistry'
+import { PlayerView as TTREPlayerView } from '../games/ticket_europe/PlayerView'
 
 const countLabel = (n: number) => n === -1 ? '∞' : String(n)
 
@@ -38,7 +39,10 @@ export function PlayerView() {
     if (hasPin) {
       p2pClient.startPlayer(
         tvPin, 
-        () => setP2pConnected(true),
+        () => {
+          setP2pConnected(true)
+          p2pClient.send('action', { action: 'join', nickname }, 'HOST')
+        },
         (err) => {
           alert('Connection Error: ' + err)
           setHasPin(false)
@@ -147,8 +151,8 @@ export function PlayerView() {
     )
   }
 
-  const game = gameState.game
   const gameId = gameState.gameId || 'secret_signals'
+  const game = gameState.game
   const gameMeta = getClientGameMeta(gameId)
   const myTeam: string | undefined = game?.playerTeams?.[playerId.current]
   const isLeader: boolean = !!game?.playerIsLeader?.[playerId.current]
@@ -164,7 +168,21 @@ export function PlayerView() {
     )
   }
 
-  /* ── Lobby / Team Setup ── */
+  /* ── Game Specific Routing ── */
+  if (gameId === 'ticket_europe') {
+    if (game?.data?.phase === 'lobby') {
+      return (
+        <div className="h-screen bg-[#0A0A0F] flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <div className="text-4xl">🚂</div>
+          <h2 className="text-white font-poppins font-black tracking-widest text-lg">WAITING TO START</h2>
+          <p className="text-[#6B7280] text-sm">You are in the game. Look at the TV and wait for the host.</p>
+        </div>
+      )
+    }
+    return <TTREPlayerView gameState={game?.data} playerId={playerId.current} />
+  }
+
+  /* ── Lobby / Team Setup (Secret Signals) ── */
   if (game.phase === 'teamSetup' || game.phase === 'lobby') {
     return (
       <RoleSelection
