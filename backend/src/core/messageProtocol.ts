@@ -5,6 +5,9 @@ export enum MessageType {
     private = 'private',
     error = 'error',
     audit = 'audit',
+    webrtc_offer = 'webrtc_offer',
+    webrtc_answer = 'webrtc_answer',
+    webrtc_ice_candidate = 'webrtc_ice_candidate',
 }
 
 export class GameMessage {

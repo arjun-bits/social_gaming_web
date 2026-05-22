@@ -4,7 +4,6 @@ import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import { Room } from './models/room';
 import { WSHub } from './core/wsHub';
-import { getPublicRegistry } from './games/gameRegistry';
 import os from 'os';
 
 function getLocalIp() {
@@ -81,11 +80,6 @@ app.get('/api/rooms/:code', (req, res) => {
         game: hub.room.currentGame || null,
         localIp: hub.room.localIp,
     });
-});
-
-// REST: list available games (from registry)
-app.get('/api/games', (_req, res) => {
-    res.json(getPublicRegistry());
 });
 
 const PORT = process.env.PORT || 8080;

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { wsClient } from '../lib/wsClient'
+import { hostController } from '../lib/hostController'
+import { CastModal } from '../components/CastModal'
+
 const wordCategories = {
   Standard: [],
   Tech: [],
@@ -17,14 +20,16 @@ export function HostView() {
   const [gameState, setGameState] = useState<any>(null)
   const [showEndModal, setShowEndModal] = useState(false)
   const [showNewGameModal, setShowNewGameModal] = useState(false)
+  const [showCastModal, setShowCastModal] = useState(false)
   const hasConnected = useRef(false)
 
   useEffect(() => {
     if (!hasConnected.current) {
       hasConnected.current = true
       wsClient.connect('HOST', 'TV Host', room)
+      hostController.initHost(room || 'DEFAULT')
     }
-    const unsub = wsClient.subscribe(setGameState)
+    const unsub = hostController.subscribe(setGameState)
     return () => unsub()
   }, [room])
 
@@ -60,30 +65,19 @@ export function HostView() {
   const players = roomInfo?.players?.filter((p: any) => p.uuid !== 'HOST') || []
 
   const onReset = () => {
-    wsClient.sendAction({ action: 'resetGame' })
+    hostController.resetGame()
     setShowEndModal(false)
     navigate(`/lobby/${room}`)
   }
 
   const onNewGame = () => {
-    wsClient.sendAction({ action: 'startGame', gameId: 'secret_signals' })
+    hostController.initGame('secret_signals')
+    hostController.startGame()
     setShowNewGameModal(false)
   }
 
   const handleOpenTV = async () => {
-    const url = `${window.location.protocol}//${window.location.host}/tv/${room}`
-    // @ts-ignore - Presentation API is standard but sometimes missing in older TS definitions
-    if (navigator.presentation && navigator.presentation.request) {
-      try {
-        // @ts-ignore
-        const request = new PresentationRequest([url])
-        await request.start()
-        return
-      } catch (err) {
-        console.warn('Presentation API failed or was cancelled, falling back to popup', err)
-      }
-    }
-    window.open(url, 'TV_VIEW', 'noopener,width=1920,height=1080')
+    setShowCastModal(true)
   }
 
   return (
@@ -377,6 +371,11 @@ export function HostView() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Cast Modal ── */}
+      {showCastModal && (
+        <CastModal roomCode={room} onClose={() => setShowCastModal(false)} />
       )}
     </div>
   )

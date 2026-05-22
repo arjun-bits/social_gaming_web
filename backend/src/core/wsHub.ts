@@ -1,14 +1,11 @@
 import WebSocket from 'ws';
 import { Room } from '../models/room';
 import { Player } from '../models/player';
-import { GameInterface } from '../games/gameInterface';
-import { createGameEngine } from '../games/gameRegistry';
 import { GameMessage, MessageType } from './messageProtocol';
 
 export class WSHub {
     private clients: Map<string, WebSocket> = new Map();
     public room: Room;
-    private game?: GameInterface;
 
     constructor(room: Room) {
         this.room = room;
@@ -30,10 +27,29 @@ export class WSHub {
     }
 
     private _handleMessage(ws: WebSocket, msg: GameMessage) {
+        console.log(`[wsHub] Received message of type: ${msg.type}`);
         if (msg.type === MessageType.join) {
             this._handleJoin(ws, msg);
         } else if (msg.type === MessageType.action) {
+            // Deprecated for game logic, but keeping for lobby actions if needed
             this._handleGameAction(msg);
+        } else if (msg.type === 'webrtc_offer') {
+            console.log(`[wsHub] Forwarding webrtc_offer from ${msg.playerId} to HOST`);
+            this._forwardTo('HOST', msg);
+        } else if (msg.type === 'webrtc_answer') {
+            this._forwardTo(msg.payload.targetId, msg);
+        } else if (msg.type === 'webrtc_ice_candidate') {
+            this._forwardTo(msg.payload.targetId, msg);
+        }
+    }
+
+    private _forwardTo(targetId: string, msg: GameMessage) {
+        const targetWs = this.clients.get(targetId);
+        if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+            console.log(`[wsHub] Sent ${msg.type} to ${targetId}`);
+            targetWs.send(msg.toJson());
+        } else {
+            console.log(`[wsHub] Failed to forward ${msg.type} to ${targetId} - WS not found or closed`);
         }
     }
 
@@ -71,20 +87,21 @@ export class WSHub {
             this.clients.delete(disconnectedId);
             this.room.updatePlayerStatus(disconnectedId, false);
             this._broadcastFullState();
+            
+            // Notify Host that a player disconnected so WebRTC can clean up
+            if (disconnectedId !== 'HOST') {
+                this._forwardTo('HOST', new GameMessage('player_disconnected' as MessageType, { playerId: disconnectedId }, 'SERVER'));
+            }
         }
     }
 
     private _handleGameAction(msg: GameMessage) {
+        // Most actions will now go over WebRTC DataChannels.
+        // We only handle basic server-level matchmaking actions here if needed.
         const action = msg.payload.action;
         const isHost = msg.playerId === 'HOST';
 
-        if (isHost && action === 'initGame') {
-            this.initGame(msg.payload.gameId);
-            return;
-        }
-
         if (isHost && action === 'resetGame') {
-            this.game = undefined;
             this.room.currentGame = undefined;
             this._broadcastFullState();
             return;
@@ -102,47 +119,6 @@ export class WSHub {
             this._broadcastFullState();
             return;
         }
-
-        if (isHost && action === 'startGame') {
-            this.startGame(msg.payload.gameId || 'secret_signals');
-            return;
-        }
-
-        if (isHost && action === 'selectGame') {
-            // Pre-select a game in the lobby (before starting)
-            if (msg.payload.gameId) {
-                this.initGame(msg.payload.gameId);
-            }
-            return;
-        }
-
-        if (!this.game) return;
-        this.game.handleAction(msg.playerId, msg.payload);
-        this._broadcastFullState();
-    }
-
-    public initGame(gameId: string) {
-        const engine = createGameEngine(gameId);
-        if (!engine) {
-            console.warn(`Unknown gameId: ${gameId}`);
-            return;
-        }
-        this.game = engine;
-        this.game.init();
-        this.room.currentGame = gameId;
-        this._broadcastFullState();
-    }
-
-    public startGame(gameId: string) {
-        if (!this.game || this.room.currentGame !== gameId) {
-            this.initGame(gameId);
-        }
-        // Assign players (including HOST so they can participate)
-        const playerIds = this.room.players.map(p => p.uuid);
-        this.game!.assignPlayers(playerIds);
-        // Pass usedWords so each board picks fresh words
-        this.game!.startPlaying(this.room.usedWords);
-        this._broadcastFullState();
     }
 
     private _broadcastFullState() {
@@ -150,25 +126,10 @@ export class WSHub {
             room: this.room.toJson(),
         };
 
-        if (this.game) {
-            basePayload.gameId = this.game.gameId;
-            basePayload.gameMeta = {
-                displayName: this.game.displayName,
-                description: this.game.description,
-                minPlayers: this.game.minPlayers,
-                maxPlayers: this.game.maxPlayers,
-            };
-        }
-
         for (const [playerId, client] of this.clients.entries()) {
             if (client.readyState !== WebSocket.OPEN) continue;
 
-            const payload = { ...basePayload };
-            if (this.game) {
-                payload.game = this.game.getStateForPlayer(playerId);
-            }
-
-            const msg = new GameMessage(MessageType.stateUpdate, payload, 'SERVER');
+            const msg = new GameMessage(MessageType.stateUpdate, basePayload, 'SERVER');
             client.send(msg.toJson());
         }
     }

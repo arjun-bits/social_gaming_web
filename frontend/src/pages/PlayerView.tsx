@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { wsClient } from '../lib/wsClient'
+import { p2pClient } from '../lib/p2pClient'
 import { getClientGameMeta } from '../games/gameRegistry'
 
 const countLabel = (n: number) => n === -1 ? '∞' : String(n)
@@ -15,6 +16,9 @@ export function PlayerView() {
   const [hasRegistered, setHasRegistered] = useState(
     !!(searchParams.get('name') || localStorage.getItem('nickname'))
   )
+  const [tvPin, setTvPin] = useState('')
+  const [hasPin, setHasPin] = useState(false)
+  const [p2pConnected, setP2pConnected] = useState(false)
   const [gameState, setGameState] = useState<any>(null)
 
   const playerId = useRef(
@@ -27,10 +31,30 @@ export function PlayerView() {
 
     if (hasRegistered) {
       wsClient.connect(playerId.current, nickname, room)
-      const unsub = wsClient.subscribe(setGameState)
-      return () => unsub()
     }
   }, [hasRegistered, nickname, room])
+
+  useEffect(() => {
+    if (hasPin) {
+      p2pClient.startPlayer(
+        tvPin, 
+        () => setP2pConnected(true),
+        (err) => {
+          alert('Connection Error: ' + err)
+          setHasPin(false)
+          setTvPin('')
+        }
+      )
+      
+      const unsub = p2pClient.onMessage((id, msg) => {
+        if (msg.type === 'stateUpdate') {
+          setGameState(msg.payload)
+        }
+      })
+      
+      return () => unsub()
+    }
+  }, [hasPin])
 
   const leaveRoom = () => {
     localStorage.removeItem('nickname')
@@ -76,12 +100,49 @@ export function PlayerView() {
     )
   }
 
+  /* ── TV PIN entry ── */
+  if (hasRegistered && !hasPin) {
+    return (
+      <div className="h-screen bg-[#0A0A0F] flex items-center justify-center px-6"
+        style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,0,127,0.06) 0%, transparent 50%), #0A0A0F' }}
+      >
+        <div className="w-full max-w-sm glass-panel space-y-6 animate-slide-up">
+          <div className="text-center">
+            <div className="text-5xl mb-3">📺</div>
+            <h1 className="font-poppins font-black text-3xl text-white mb-1">Look at the TV</h1>
+            <p className="text-[#6B7280] text-xs uppercase tracking-[0.3em]">Enter the 4-digit PIN</p>
+          </div>
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="0000"
+              maxLength={4}
+              className="w-full bg-[#1C1C24] text-center text-[#FF007F] font-poppins font-black text-4xl tracking-[0.5em] rounded-xl px-4 py-4 border-2 border-transparent focus:border-[#FF007F] outline-none transition-colors placeholder:text-[#4B5563]"
+              value={tvPin}
+              onChange={e => setTvPin(e.target.value.replace(/[^0-9]/g, ''))}
+              onKeyDown={e => e.key === 'Enter' && tvPin.length === 4 && setHasPin(true)}
+              autoFocus
+            />
+            <button
+              className="w-full py-4 rounded-xl font-poppins font-black text-lg text-white transition active:scale-95 disabled:opacity-40"
+              style={{ background: 'linear-gradient(135deg, #FF007F, #A855F7)' }}
+              onClick={() => setHasPin(true)}
+              disabled={tvPin.length !== 4}
+            >
+              Connect to TV
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   /* ── Connecting ── */
-  if (!gameState) {
+  if (!p2pConnected || !gameState) {
     return (
       <div className="h-screen bg-[#0A0A0F] flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 border-4 border-[#00E5FF] border-t-transparent rounded-full animate-spin shadow-blue" />
-        <p className="text-[#6B7280] font-inter text-sm animate-pulse">Connecting to Arcade...</p>
+        <div className="w-12 h-12 border-4 border-[#FF007F] border-t-transparent rounded-full animate-spin shadow-[0_0_15px_#FF007F]" />
+        <p className="text-[#6B7280] font-inter text-sm animate-pulse">Establishing Secure P2P Connection...</p>
       </div>
     )
   }
@@ -184,7 +245,7 @@ function RoleSelection({ myTeam, isLeader, gameExists, roomData, gameData, gameM
     { label: 'Operative', team: 'teamB', leader: false, color: '#FF007F', emoji: '🩷' },
   ]
   const pick = (team: string, leader: boolean) => {
-    wsClient.sendAction({ action: 'joinRole', team, isLeader: leader })
+    p2pClient.send('action', { action: 'joinRole', team, isLeader: leader }, 'HOST')
   }
 
   const players = roomData?.players || []
@@ -192,22 +253,24 @@ function RoleSelection({ myTeam, isLeader, gameExists, roomData, gameData, gameM
   const teamBPlayers = players.filter((p: any) => gameData?.playerTeams?.[p.uuid] === 'teamB')
   const unassigned = players.filter((p: any) => !gameData?.playerTeams?.[p.uuid] && p.uuid !== 'HOST')
 
-  const getLeaderId = (team: string) =>
-    Object.keys(gameData?.playerIsLeader || {}).find(
+  const getLeaderIds = (team: string) =>
+    Object.keys(gameData?.playerIsLeader || {}).filter(
       id => gameData.playerIsLeader[id] && gameData.playerTeams[id] === team
     )
 
   const renderMini = (list: any[], team: string) => {
-    const leaderId = getLeaderId(team)
-    const leader = list.find(p => p.uuid === leaderId)
-    const ops = list.filter(p => p.uuid !== leaderId)
+    const leaderIds = getLeaderIds(team)
+    const leaders = list.filter(p => leaderIds.includes(p.uuid))
+    const ops = list.filter(p => !leaderIds.includes(p.uuid))
     const color = team === 'teamA' ? '#00E5FF' : '#FF007F'
     return (
       <div className="space-y-1">
-        {leader ? (
-          <div className="text-xs px-3 py-1.5 rounded-lg border-l-2 font-bold" style={{ borderColor: color, color, background: `${color}11` }}>
-            👑 {leader.nickname}
-          </div>
+        {leaders.length > 0 ? (
+          leaders.map(leader => (
+            <div key={leader.uuid} className="text-xs px-3 py-1.5 rounded-lg border-l-2 font-bold" style={{ borderColor: color, color, background: `${color}11` }}>
+              👑 {leader.nickname}
+            </div>
+          ))
         ) : (
           <div className="text-[10px] px-3 py-1.5 rounded-lg border border-dashed border-white/10 text-[#4B5563] italic">Spymaster empty</div>
         )}
@@ -321,7 +384,7 @@ function SpymasterView({ game, myTeam }: { game: any; myTeam: string }) {
 
   const transmit = () => {
     if (!clueWord.trim() || !isMyTurn || game.turnPhase !== 'givingClue') return
-    wsClient.sendAction({ action: 'submitClue', word: clueWord.trim(), count: clueCount })
+    p2pClient.send('action', { action: 'submitClue', word: clueWord.trim(), count: clueCount }, 'HOST')
     setClueWord('')
     setClueCount(1)
   }
@@ -456,24 +519,24 @@ function OperativeView({ game, myTeam, playerId }: { game: any; myTeam: string; 
 
   const tapCard = (idx: number, word: string, isRevealed: boolean) => {
     if (isRevealed || !isMyTurn || game.turnPhase !== 'guessing') return
-    wsClient.sendAction({ action: 'hoverCard', cardIndex: idx })
+    p2pClient.send('action', { action: 'hoverCard', cardIndex: idx }, 'HOST')
     setPendingCard({ index: idx, word })
   }
 
   const confirmGuess = () => {
     if (!pendingCard) return
-    wsClient.sendAction({ action: 'guess', cardIndex: pendingCard.index })
-    wsClient.sendAction({ action: 'clearHover' })
+    p2pClient.send('action', { action: 'guess', cardIndex: pendingCard.index }, 'HOST')
+    p2pClient.send('action', { action: 'clearHover' }, 'HOST')
     setPendingCard(null)
   }
 
   const cancelGuess = () => {
-    wsClient.sendAction({ action: 'clearHover' })
+    p2pClient.send('action', { action: 'clearHover' }, 'HOST')
     setPendingCard(null)
   }
 
   const endTurn = () => {
-    wsClient.sendAction({ action: 'passTurn' })
+    p2pClient.send('action', { action: 'passTurn' }, 'HOST')
     setShowEndTurnConfirm(false)
   }
 

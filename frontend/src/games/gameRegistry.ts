@@ -3,6 +3,18 @@
  * Add new games here — the shell pages (Lobby, Host, TV, Player) are game-agnostic.
  */
 
+import type { GameInterface } from '../core/engine/gameInterface';
+import { SSGameEngine } from '../core/engine/secret_signals/engine';
+
+export function createGameEngine(gameId: string): GameInterface | null {
+  switch (gameId) {
+    case 'secret_signals':
+      return new SSGameEngine();
+    default:
+      return null;
+  }
+}
+
 export interface GameClientMeta {
   gameId: string;
   displayName: string;

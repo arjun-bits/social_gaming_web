@@ -1,4 +1,4 @@
-import { GameInterface } from '../gameInterface';
+import type { GameInterface } from '../gameInterface';
 import { SecretSignalsState, CardTeam, GamePhase, TurnPhase, WordCard, Clue, wordCategories, pickBoardWords } from './models';
 
 export class SSGameEngine implements GameInterface {

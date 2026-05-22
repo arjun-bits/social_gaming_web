@@ -1,8 +1,10 @@
 export type GameStateCallback = (state: any) => void;
+export type RawMessageCallback = (msg: any) => void;
 
 class WSClient {
     private ws: WebSocket | null = null;
     private listeners: GameStateCallback[] = [];
+    private rawListeners: RawMessageCallback[] = [];
     public playerId: string = '';
     private nickname: string = '';
     private roomCode: string = '';
@@ -10,12 +12,14 @@ class WSClient {
     private intentionalClose = false;
     private reconnectDelay = 1000;
     private lastState: any = null;
+    private onConnectCb?: () => void;
 
-    connect(playerId: string, nickname: string, roomCode?: string) {
+    connect(playerId: string, nickname: string, roomCode?: string, onConnect?: () => void) {
         this.playerId = playerId;
         this.nickname = nickname;
         if (roomCode) this.roomCode = roomCode;
         this.intentionalClose = false;
+        this.onConnectCb = onConnect;
         this._openSocket();
     }
 
@@ -35,11 +39,16 @@ class WSClient {
             console.log(`[WS] Connected to room ${this.roomCode}`);
             this.reconnectDelay = 1000; // reset backoff
             this.send('join', { nickname: this.nickname });
+            if (this.onConnectCb) this.onConnectCb();
         };
 
         this.ws.onmessage = (event) => {
             try {
                 const msg = JSON.parse(event.data);
+                
+                // Fire raw listeners
+                this.rawListeners.forEach(cb => cb(msg));
+
                 if (msg.type === 'stateUpdate') {
                     this.lastState = msg.payload;
                     this.listeners.forEach(cb => cb(msg.payload));
@@ -94,6 +103,13 @@ class WSClient {
         }
         return () => {
             this.listeners = this.listeners.filter(cb => cb !== callback);
+        };
+    }
+
+    subscribeRaw(callback: RawMessageCallback) {
+        this.rawListeners.push(callback);
+        return () => {
+            this.rawListeners = this.rawListeners.filter(cb => cb !== callback);
         };
     }
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { wsClient } from '../lib/wsClient'
+import { p2pClient } from '../lib/p2pClient'
 
 export function TVPage() {
   const { room } = useParams<{ room: string }>()
@@ -12,10 +13,26 @@ export function TVPage() {
   useEffect(() => {
     if (!hasConnected.current) {
       hasConnected.current = true
-      wsClient.connect('HOST', 'TV Host', room)
+      
+      // Connect to signaling server with a unique TV ID
+      const tvId = 'TV_' + Math.random().toString(36).substring(2, 8)
+      wsClient.connect(tvId, 'TV Display', room, () => {
+        // Once connected to signaling server, establish WebRTC to Host
+        p2pClient.startPlayer('', () => {
+           console.log('[TV] Connected to Host via WebRTC!')
+        }, (err) => {
+           console.error('[TV] WebRTC Error:', err)
+        }, true)
+      })
     }
-    const unsub = wsClient.subscribe(setGameState)
-    return () => unsub()
+
+    const unsubP2P = p2pClient.onMessage((id, msg) => {
+      if (msg.type === 'stateUpdate') {
+         setGameState(msg.payload)
+      }
+    })
+
+    return () => unsubP2P()
   }, [room])
 
   if (!gameState) {
@@ -53,7 +70,14 @@ export function TVPage() {
         </div>
         <div>
           <p className="text-[9px] text-[#6B7280] uppercase tracking-[0.25em]">Join Game</p>
-          <p className="font-poppins font-black text-2xl text-[#00E5FF] tracking-widest leading-none">{room}</p>
+          <div className="flex gap-2 items-center">
+            <span className="font-poppins font-black text-2xl text-[#00E5FF] tracking-widest leading-none">{room}</span>
+            {roomInfo?.tvPin && (
+              <div className="bg-[#FF007F] text-white px-2 py-0.5 rounded text-sm font-black tracking-widest flex items-center">
+                PIN: {roomInfo.tvPin}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -89,8 +113,8 @@ function TVLobbyView({ roomInfo, game, joinUrl, room }: any) {
         <p className="text-[#6B7280] text-lg mt-3">Scan the code to join · Pick your role · Wait for the host</p>
       </div>
 
-      {/* Team display */}
-      {game && (
+      {/* Team display or generic waiting */}
+      {roomInfo?.isConfiguring && game ? (
         <div className="w-full max-w-5xl flex gap-8 animate-slide-up">
           {/* Blue Team */}
           <div className="flex-1 bg-black/40 rounded-3xl border border-[#00E5FF]/20 p-6">
@@ -123,6 +147,10 @@ function TVLobbyView({ roomInfo, game, joinUrl, room }: any) {
             </div>
             <TeamRoster players={teamBPlayers} team="teamB" game={game} reverse />
           </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+            <p className="text-[#6B7280] text-xl italic font-poppins">Waiting for Host to select and configure a game...</p>
         </div>
       )}
 

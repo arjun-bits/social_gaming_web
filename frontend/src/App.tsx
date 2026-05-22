@@ -12,21 +12,16 @@ function Landing() {
   const [nickname, setNickname] = useState('')
   const [creating, setCreating] = useState(false)
   const [activeTab, setActiveTab] = useState<'join' | 'host'>('join')
+  const [hostRoom, setHostRoom] = useState('')
+  const [hostNickname, setHostNickname] = useState('TV Host')
   const navigate = useNavigate()
 
   const createRoom = async () => {
     setCreating(true)
-    try {
-      const host = window.location.hostname
-      const res = await fetch(`http://${host}:8080/api/rooms/create`)
-      const data = await res.json()
-      navigate(`/lobby/${data.roomCode}`)
-    } catch {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-      navigate(`/lobby/${code}`)
-    } finally {
-      setCreating(false)
-    }
+    const code = hostRoom.trim() ? hostRoom.trim().toUpperCase() : Math.random().toString(36).substring(2, 8).toUpperCase()
+    const nameParam = hostNickname.trim() ? `?name=${encodeURIComponent(hostNickname.trim())}` : ''
+    navigate(`/lobby/${code}${nameParam}`)
+    setCreating(false)
   }
 
   const joinGame = () => {
@@ -140,14 +135,27 @@ function Landing() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-black/30 rounded-xl p-4 border border-white/5">
-                <p className="text-white text-sm font-inter mb-2">As a host, you'll:</p>
-                <ul className="text-[#6B7280] text-xs space-y-1.5">
-                  <li>✅ Pick a game from the lobby</li>
-                  <li>✅ Share the QR code with players</li>
-                  <li>✅ Control the TV screen</li>
-                  <li>✅ Start & manage the session</li>
-                </ul>
+              <div className="input-group">
+                <input
+                  id="input-host-room"
+                  type="text"
+                  placeholder="Custom Room Code (Optional)"
+                  value={hostRoom}
+                  onChange={e => setHostRoom(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === 'Enter' && createRoom()}
+                  maxLength={12}
+                  autoComplete="off"
+                />
+                <input
+                  id="input-host-nickname"
+                  type="text"
+                  placeholder="Your Nickname"
+                  value={hostNickname}
+                  onChange={e => setHostNickname(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && createRoom()}
+                  maxLength={14}
+                  autoComplete="off"
+                />
               </div>
               <button
                 id="btn-create-room"
