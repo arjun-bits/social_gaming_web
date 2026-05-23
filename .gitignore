@@ -31,10 +31,15 @@ yarn-error.log*
 
 # ── Test artefacts ────────────────────────────────────────────────────────
 e2e_screenshots/
+# Ignore loose images at root and in tests/, but ALLOW docs/references/images/
 *.png
 *.jpg
 *.jpeg
 *.gif
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.jpeg
+!docs/**/*.gif
 
 # ── Temp / scratch ────────────────────────────────────────────────────────
 *.tmp
