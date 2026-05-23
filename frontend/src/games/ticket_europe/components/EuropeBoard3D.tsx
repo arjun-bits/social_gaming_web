@@ -4,18 +4,19 @@
  * Camera: [0, 22, 10] fov=45 → ~65° above horizon. Pan+zoom, no rotation.
  */
 import React, { Suspense, useCallback, useMemo } from 'react';
-import { Canvas }       from '@react-three/fiber';
-import { MapControls }  from '@react-three/drei';
-import * as THREE       from 'three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, OrthographicCamera } from '@react-three/drei';
+import * as THREE from 'three';
 import type { TTREStateData } from '../../../core/engine/ticket_europe/models';
-import { TerrainMesh }      from './board3d/TerrainMesh';
-import { OceanPlane }       from './board3d/OceanPlane';
-import { TreeMesh }         from './board3d/TreeMesh';
+import { TerrainMesh } from './board3d/TerrainMesh';
+import { OceanPlane } from './board3d/OceanPlane';
+import { TreeMesh } from './board3d/TreeMesh';
 import { OceanDecorations } from './board3d/OceanDecorations';
-import { LighthouseMesh }   from './board3d/LighthouseMesh';
-import { RouteMesh }        from './board3d/RouteMesh';
-import { CityMarker }       from './board3d/CityMarker';
-import { StationMarker }    from './board3d/StationMarker';
+import { LighthouseMesh } from './board3d/LighthouseMesh';
+import { MountainMesh } from './board3d/MountainMesh';
+import { RouteMesh } from './board3d/RouteMesh';
+import { CityMarker } from './board3d/CityMarker';
+import { StationMarker } from './board3d/StationMarker';
 import { cities, initialRoutes } from '../../../core/engine/ticket_europe/boardData';
 
 // ── Coordinate mapping ──────────────────────────────────────────────────
@@ -23,15 +24,32 @@ import { cities, initialRoutes } from '../../../core/engine/ticket_europe/boardD
 export function toWorld(x: number, y: number): [number, number] {
   return [
     (x / 1000) * 24.5 - 12.25,
-    (y / 800)  * 17.5 - 8.75,
+    (y / 800) * 17.5 - 8.75,
   ];
 }
 
 interface Props {
   gameState: TTREStateData | null;
   interactive: boolean;
-  onCityClick?:  (cityId: string)  => void;
+  onCityClick?: (cityId: string) => void;
   onRouteClick?: (routeId: string) => void;
+}
+
+function CameraLimiter() {
+  const { controls } = useThree();
+  useFrame(() => {
+    if (controls) {
+      const target = (controls as any).target;
+      if (target) {
+        // Clamp MapControls target so user cannot pan off the board
+        if (target.x < -6.5) target.x = -6.5;
+        if (target.x > 6.5) target.x = 6.5;
+        if (target.z < -5.0) target.z = -5.0;
+        if (target.z > 3.5) target.z = 3.5;
+      }
+    }
+  });
+  return null;
 }
 
 export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClick }: Props) {
@@ -48,99 +66,184 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
     return map;
   }, [gameState]);
 
-  const handleCityClick  = useCallback((id: string) => { if (interactive) onCityClick?.(id);  }, [interactive, onCityClick]);
+  const handleCityClick = useCallback((id: string) => { if (interactive) onCityClick?.(id); }, [interactive, onCityClick]);
   const handleRouteClick = useCallback((id: string) => { if (interactive) onRouteClick?.(id); }, [interactive, onRouteClick]);
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#0f2038' }}>
+    <div style={{ width: '100%', height: '100%', background: '#1c120a' }}>
       <Canvas
-        camera={{
-          // TRUE 2.5D ISOMETRIC — top-down, ~65° above horizon
-          // Europe spreads flat filling the canvas like a board game.
-          position: [0, 22, 10],
-          fov: 45,
-          near: 0.1,
-          far: 300,
-        }}
         dpr={[1, 2]}
         shadows={{ type: THREE.PCFSoftShadowMap }}
         gl={{
           antialias: true,
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 1.0,
         }}
         frameloop="always"
-        style={{ background: '#0f2038' }}
-        onCreated={({ camera }) => {
-          // Look slightly south of centre to account for southward board tilt
-          camera.lookAt(0, 0, -2);
-        }}
+        style={{ background: '#1c120a' }}
       >
-        {/* ── Lighting — warm top-left sunlight with soft blue fill ── */}
-        <ambientLight intensity={0.65} color="#d8e5f0" />
+        {/* TRUE DIAGONAL 3D ISOMETRIC VIEWPORT (Matches reference Image 2 perfectly) */}
+        <OrthographicCamera
+          makeDefault
+          position={[18, 22, 22]}
+          zoom={48}
+          near={0.1}
+          far={500}
+        />
+
+        {/* ── Lighting — Beautiful, warm, dramatic tabletop light (Casts gorgeous, realistic soft shadows) ── */}
+        <ambientLight intensity={0.52} color="#fff8e7" />
+        
+        {/* Dominant warm golden directional light casting beautiful low-poly shadows */}
         <directionalLight
-          position={[8, 25, 10]}
-          intensity={1.20}
-          color="#fff4df"
+          position={[12, 35, 10]}
+          intensity={1.25}
+          color="#ffeed0"
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
           shadow-camera-near={0.5}
-          shadow-camera-far={70}
-          shadow-camera-left={-18}
-          shadow-camera-right={18}
-          shadow-camera-top={18}
-          shadow-camera-bottom={-18}
+          shadow-camera-far={100}
+          shadow-camera-left={-25}
+          shadow-camera-right={25}
+          shadow-camera-top={25}
+          shadow-camera-bottom={-25}
+          shadow-bias={-0.0004}
         />
-        {/* Soft fill from opposite side */}
-        <directionalLight position={[-8, 18, -10]} intensity={0.32} color="#c0d8e8" />
-        {/* Hemisphere: sky blue-green / ground forest */}
-        <hemisphereLight args={['#dceef0', '#3a5a28', 0.50]} />
+        
+        {/* Soft, cool fill light to bounce light into shadow areas (renders gorgeous blue-tinted shadows) */}
+        <directionalLight 
+          position={[-15, 25, -10]} 
+          intensity={0.35} 
+          color="#d0e5ff" 
+        />
+        
+        <hemisphereLight args={['#fffaee', '#3a2818', 0.28]} />
 
-        {/* ── MapControls — pan + zoom, rotation LOCKED ── */}
-        <MapControls
+        {/* ── OrbitControls — pan + zoom, rotation LOCKED (Locks true 3D diagonal isometric view) ── */}
+        <OrbitControls
           enableRotate={false}
           enablePan={true}
           enableZoom={true}
-          panSpeed={1.6}
-          zoomSpeed={0.8}
-          minDistance={10}
-          maxDistance={38}
+          panSpeed={1.8}
+          zoomSpeed={1.0}
+          minZoom={28}
+          maxZoom={120}
           screenSpacePanning={true}
+          target={[0, 0, -1]}
           makeDefault
         />
 
+        {/* Limit camera viewport off-board */}
+        <CameraLimiter />
+
         {/* ── Scene ── */}
         <Suspense fallback={null}>
-          {/* ── Premium High-Definition Board Game Tray & Frames ── */}
-          {/* Thick Dark Mahogany Base */}
-          <mesh position={[0, -0.22, 0]} receiveShadow castShadow>
-            <boxGeometry args={[26, 0.4, 19]} />
-            <meshStandardMaterial color="#1a1108" roughness={0.8} metalness={0.2} />
+          {/* ── High-definition tactile Walnut Wood Plank table surface (organic planks + HD grain) ── */}
+          <group position={[0, -0.42, 0]}>
+            {Array.from({ length: 28 }).map((_, i) => {
+              // Planks run vertically (along Z). Width: 5.0, dark spacing gap: 0.1
+              const xPos = (i - 13.5) * 5.1;
+              const shades = ['#22140a', '#291b0f', '#2f1f13', '#332317'];
+              // Fix float index bug to avoid undefined color output (resolved grey/white table issue)
+              const index = Math.floor(Math.abs(Math.sin(i * 12.7) * shades.length)) % shades.length;
+              const color = shades[index];
+              return (
+                <group key={i} position={[xPos, 0, 0]}>
+                  {/* Base Plank */}
+                  <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                    <planeGeometry args={[5.0, 100]} />
+                    <meshStandardMaterial color={color} roughness={0.85} metalness={0.06} />
+                  </mesh>
+                  {/* Subtle organic dark wood grain stripes running along the Z axis */}
+                  <mesh position={[-1.2, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                    <planeGeometry args={[0.06, 100]} />
+                    <meshStandardMaterial color="#120803" roughness={0.9} transparent opacity={0.35} />
+                  </mesh>
+                  <mesh position={[0.8, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                    <planeGeometry args={[0.08, 100]} />
+                    <meshStandardMaterial color="#120803" roughness={0.9} transparent opacity={0.35} />
+                  </mesh>
+                </group>
+              );
+            })}
+          </group>
+
+          {/* ── Premium High-Definition Board Game Tray & Frames (Enlarged to 32x24) ── */}
+          {/* Thick Dark Mahogany Base - Lowered so ocean sits above it */}
+          <mesh position={[0, -0.25, 0]} receiveShadow castShadow>
+            <boxGeometry args={[32, 0.16, 24]} />
+            <meshStandardMaterial color="#140a04" roughness={0.76} metalness={0.15} />
           </mesh>
 
-          {/* Wooden Borders framing the active board area */}
+          {/* Satin Polished Mahogany Wooden Borders framing the active board area */}
           {/* Top Border */}
-          <mesh position={[0, -0.01, -9.5]} receiveShadow castShadow>
-            <boxGeometry args={[26.4, 0.12, 0.4]} />
-            <meshStandardMaterial color="#2d1508" roughness={0.7} metalness={0.1} />
+          <mesh position={[0, -0.01, -12.0]} receiveShadow castShadow>
+            <boxGeometry args={[32.4, 0.12, 0.4]} />
+            <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Bottom Border */}
-          <mesh position={[0, -0.01, 9.5]} receiveShadow castShadow>
-            <boxGeometry args={[26.4, 0.12, 0.4]} />
-            <meshStandardMaterial color="#2d1508" roughness={0.7} metalness={0.1} />
+          <mesh position={[0, -0.01, 12.0]} receiveShadow castShadow>
+            <boxGeometry args={[32.4, 0.12, 0.4]} />
+            <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Left Border */}
-          <mesh position={[-13, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 19]} />
-            <meshStandardMaterial color="#2d1508" roughness={0.7} metalness={0.1} />
+          <mesh position={[-16.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.4, 0.12, 24]} />
+            <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Right Border */}
-          <mesh position={[13, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 19]} />
-            <meshStandardMaterial color="#2d1508" roughness={0.7} metalness={0.1} />
+          <mesh position={[16.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.4, 0.12, 24]} />
+            <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
+
+          {/* Polished Brass Corner Braces for deluxe tabletop board game styling */}
+          {/* Top-Left Corner Brace */}
+          <group position={[-15.7, 0.051, -11.7]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+            <mesh castShadow position={[0, 0, 0.24]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+          </group>
+          {/* Top-Right Corner Brace */}
+          <group position={[15.7, 0.051, -11.7]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+            <mesh castShadow position={[0, 0, 0.24]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+          </group>
+          {/* Bottom-Left Corner Brace */}
+          <group position={[-15.7, 0.051, 11.7]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+            <mesh castShadow position={[0, 0, -0.24]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+          </group>
+          {/* Bottom-Right Corner Brace */}
+          <group position={[15.7, 0.051, 11.7]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+            <mesh castShadow position={[0, 0, -0.24]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
+            </mesh>
+          </group>
 
           {/* Ocean base */}
           <OceanPlane />
@@ -148,6 +251,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
 
           {/* Land */}
           <TerrainMesh />
+          <MountainMesh />
           <TreeMesh />
           <LighthouseMesh />
 

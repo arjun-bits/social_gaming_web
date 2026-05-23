@@ -4,7 +4,7 @@
  * Scandinavia, and Sicily using Point-in-Polygon checks.
  * Integrates warm sandy shores and dynamic alpine elevations with snowy peaks.
  */
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import { Delaunay } from 'd3-delaunay';
 import { cities } from '../../../../core/engine/ticket_europe/boardData';
@@ -92,6 +92,22 @@ export const POLYGON_SICILY: Array<[number, number]> = [
   [430, 770]  // Southwest Sicily (Agrigento)
 ];
 
+export const POLYGON_SARDINIA_CORSICA: Array<[number, number]> = [
+  [380, 520], [400, 520], [410, 560], [390, 600], [370, 600], [370, 550]
+];
+
+export const POLYGON_BALEARIC: Array<[number, number]> = [
+  [250, 570], [280, 560], [290, 590], [260, 600]
+];
+
+export const POLYGON_CRETE: Array<[number, number]> = [
+  [650, 750], [710, 755], [700, 770], [640, 765]
+];
+
+export const POLYGON_CYPRUS: Array<[number, number]> = [
+  [830, 730], [870, 740], [850, 760], [810, 750]
+];
+
 // ── Point in Polygon ray-casting checker ──
 export function isPointInPolygon(point: [number, number], polygon: Array<[number, number]>): boolean {
   const [x, y] = point;
@@ -112,16 +128,21 @@ export function isLandPoint(x: number, y: number): boolean {
          isPointInPolygon(p, POLYGON_BRITAIN) ||
          isPointInPolygon(p, POLYGON_IRELAND) ||
          isPointInPolygon(p, POLYGON_SCANDINAVIA) ||
-         isPointInPolygon(p, POLYGON_SICILY);
+         isPointInPolygon(p, POLYGON_SICILY) ||
+         isPointInPolygon(p, POLYGON_SARDINIA_CORSICA) ||
+         isPointInPolygon(p, POLYGON_BALEARIC) ||
+         isPointInPolygon(p, POLYGON_CRETE) ||
+         isPointInPolygon(p, POLYGON_CYPRUS);
 }
 
 // ── Low-poly vertex color assignment based on height & coastal status ──
 function getVertexColor(elevation: number, isCoast: boolean): THREE.Color {
-  if (isCoast || elevation < 0.06) {
-    return new THREE.Color('#e2c99a'); // Beautiful sandy coastline beach
+  // Seamless Beach Rule: Sand is only colored on very low elevation coastline vertices
+  if (isCoast && elevation < 0.035) {
+    return new THREE.Color('#dcd0b4'); // Elegant, thin, seamless warm sandy beach
   }
   if (elevation < 0.16) {
-    return new THREE.Color('#5da03b'); // Lowland lush grass green
+    return new THREE.Color('#58963c'); // Lowland lush grass green
   }
   if (elevation < 0.35) {
     return new THREE.Color('#3d7a22'); // Warmer plains / forest green
@@ -202,8 +223,47 @@ const SCATTER: Array<[number, number, number]> = [
   [380, 250, 0.08], [420, 270, 0.07], [460, 240, 0.06], [380, 220, 0.07],
 ];
 
+export function getTerrainHeight(boardX: number, boardY: number): number {
+  let totalWeight = 0;
+  let weightedElevation = 0;
+  
+  // High-fidelity Alpine peaks and mountain range interpolation
+  for (const city of Object.values(cities)) {
+    const dx = city.x - boardX;
+    const dy = city.y - boardY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < 1.0) {
+      const [wx, wz] = toWorld(boardX, boardY);
+      const jitter = (Math.sin(wx * 17.3 + wz * 31.7) * 0.5 + 0.5) * 0.05;
+      return (CITY_ELEVATION[city.id] ?? 0.07) * 1.65 + jitter;
+    }
+    const weight = 1 / (distSq * distSq + 1.0);
+    totalWeight += weight;
+    weightedElevation += (CITY_ELEVATION[city.id] ?? 0.07) * weight;
+  }
+  
+  for (const [sx, sy, elev] of SCATTER) {
+    const dx = sx - boardX;
+    const dy = sy - boardY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < 1.0) {
+      const [wx, wz] = toWorld(boardX, boardY);
+      const jitter = (Math.sin(wx * 17.3 + wz * 31.7) * 0.5 + 0.5) * 0.05;
+      return elev * 1.65 + jitter;
+    }
+    const weight = 1 / (distSq * distSq + 1.0);
+    totalWeight += weight;
+    weightedElevation += elev * weight;
+  }
+  
+  const [wx, wz] = toWorld(boardX, boardY);
+  const jitter = (Math.sin(wx * 17.3 + wz * 31.7) * 0.5 + 0.5) * 0.05;
+  if (totalWeight === 0) return 0.07 * 1.65 + jitter;
+  return (weightedElevation / totalWeight) * 1.65 + jitter;
+}
+
 export function TerrainMesh() {
-  const geometry = useMemo(() => {
+  const { geometry, skirtGeometry } = useMemo(() => {
     // Each point: [x, y, elevation, isCoast] in board coordinate system
     const points: Array<[number, number, number, boolean]> = [];
 
@@ -211,17 +271,54 @@ export function TerrainMesh() {
     for (const city of Object.values(cities)) {
       points.push([city.x, city.y, CITY_ELEVATION[city.id] ?? 0.07, false]);
     }
-    // 2. Add scatter points
-    for (const [mx, my, elev] of SCATTER) {
-      points.push([mx, my, elev, false]);
+    
+    // 2. Add procedural dense grid points over the entire active board area
+    // Dense 18-unit step grid covers everything with thousands of small, beautiful low-poly facets!
+    for (let x = 10; x < 1000; x += 13) {
+      for (let y = 10; y < 800; y += 13) {
+        if (isLandPoint(x, y)) {
+          // Check if it's too close to a city
+          let tooClose = false;
+          for (const city of Object.values(cities)) {
+            const dx = city.x - x;
+            const dy = city.y - y;
+            if (dx * dx + dy * dy < 225) { // 15 units distance
+              tooClose = true;
+              break;
+            }
+          }
+          if (!tooClose) {
+            // Find a suitable elevation from nearest scatter or city
+            let totalW = 0;
+            let weightedElev = 0;
+            for (const [sx, sy, elev] of SCATTER) {
+              const dx = sx - x;
+              const dy = sy - y;
+              const dSq = dx * dx + dy * dy;
+              if (dSq < 2500) { // 50 units spread
+                const w = 1 / (dSq + 1);
+                totalW += w;
+                weightedElev += elev * w;
+              }
+            }
+            const finalElev = totalW > 0 ? (weightedElev / totalW) : 0.07;
+            points.push([x, y, finalElev, false]);
+          }
+        }
+      }
     }
+
     // 3. Add coastline boundary vertices directly so Delaunay cuts off crisply at the edge
     const ALL_POLYGONS = [
       POLYGON_MAINLAND,
       POLYGON_BRITAIN,
       POLYGON_IRELAND,
       POLYGON_SCANDINAVIA,
-      POLYGON_SICILY
+      POLYGON_SICILY,
+      POLYGON_SARDINIA_CORSICA,
+      POLYGON_BALEARIC,
+      POLYGON_CRETE,
+      POLYGON_CYPRUS
     ];
     for (const poly of ALL_POLYGONS) {
       for (const [px, py] of poly) {
@@ -255,14 +352,14 @@ export function TerrainMesh() {
       const [bwx, bwz] = toWorld(bx, by);
       const [cwx, cwz] = toWorld(cx, cy);
 
-      // Low-poly facets jitter
+      // Low-poly facets subtle jitter
       const jitter = (x: number, z: number) =>
-        (Math.sin(x * 17.3 + z * 31.7) * 0.5 + 0.5) * 0.04;
+        (Math.sin(x * 17.3 + z * 31.7) * 0.5 + 0.5) * 0.05;
 
-      // 1.25× multiplier — creates gorgeous elevated mountain ranges
-      const ay3d = ae * 1.25 + jitter(awx, awz);
-      const by3d = be * 1.25 + jitter(bwx, bwz);
-      const cy3d = ce * 1.25 + jitter(cwx, cwz);
+      // Dynamic 3D landmass height snapping perfectly
+      const ay3d = ae * 1.65 + jitter(awx, awz);
+      const by3d = be * 1.65 + jitter(bwx, bwz);
+      const cy3d = ce * 1.65 + jitter(cwx, cwz);
 
       positions.push(
         awx, ay3d, awz,
@@ -286,12 +383,58 @@ export function TerrainMesh() {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
     geo.computeVertexNormals();
-    return geo;
+
+    // 4. Generate Skirt side walls
+    const skirtPositions: number[] = [];
+    const skirtBaseY = -0.16;
+
+    for (const poly of ALL_POLYGONS) {
+      const len = poly.length;
+      for (let i = 0; i < len; i++) {
+        const p1 = poly[i];
+        const p2 = poly[(i + 1) % len];
+
+        const [w1x, w1z] = toWorld(p1[0], p1[1]);
+        const [w2x, w2z] = toWorld(p2[0], p2[1]);
+
+        // Top points (coastline height)
+        const jitter1 = (Math.sin(w1x * 17.3 + w1z * 31.7) * 0.5 + 0.5) * 0.05;
+        const h1 = 0.01 * 1.65 + jitter1;
+
+        const jitter2 = (Math.sin(w2x * 17.3 + w2z * 31.7) * 0.5 + 0.5) * 0.05;
+        const h2 = 0.01 * 1.65 + jitter2;
+
+        // Quad vertices
+        // Triangle 1: p1_top, p1_bottom, p2_top
+        skirtPositions.push(w1x, h1, w1z);
+        skirtPositions.push(w1x, skirtBaseY, w1z);
+        skirtPositions.push(w2x, h2, w2z);
+
+        // Triangle 2: p2_top, p1_bottom, p2_bottom
+        skirtPositions.push(w2x, h2, w2z);
+        skirtPositions.push(w1x, skirtBaseY, w1z);
+        skirtPositions.push(w2x, skirtBaseY, w2z);
+      }
+    }
+
+    const skirtGeo = new THREE.BufferGeometry();
+    skirtGeo.setAttribute('position', new THREE.Float32BufferAttribute(skirtPositions, 3));
+    skirtGeo.computeVertexNormals();
+
+    return { geometry: geo, skirtGeometry: skirtGeo };
   }, []);
 
   return (
-    <mesh geometry={geometry} receiveShadow>
-      <meshLambertMaterial vertexColors flatShading side={THREE.FrontSide} />
-    </mesh>
+    <group>
+      {/* Landmass surface */}
+      <mesh geometry={geometry} receiveShadow castShadow>
+        <meshStandardMaterial vertexColors flatShading roughness={0.76} metalness={0.08} />
+      </mesh>
+      
+      {/* Landmass 3D side walls (skirts) - Dark Walnut wood finish */}
+      <mesh geometry={skirtGeometry} receiveShadow castShadow>
+        <meshStandardMaterial color="#2d1c10" flatShading roughness={0.82} metalness={0.05} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
   );
 }

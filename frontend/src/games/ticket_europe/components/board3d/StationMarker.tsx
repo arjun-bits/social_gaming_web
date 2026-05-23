@@ -3,7 +3,7 @@
  * A colored pin/cylinder that appears above a city when a player builds a station there.
  * Animates in with a scale spring on mount.
  */
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { City } from '../../../../core/engine/ticket_europe/models';

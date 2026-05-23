@@ -1,40 +1,35 @@
-/**
- * CityMarker.tsx — Small 3D station building + iconic custom low-poly landmarks.
- * Features high-contrast, semi-transparent dark rounded pill badges for city labels.
- * Geometries are fully optimized using native Three.js primitives.
- */
-import React, { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { Text, Billboard } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { City } from '../../../../core/engine/ticket_europe/models';
 import { toWorld } from '../EuropeBoard3D';
-import { CITY_ELEVATION } from './TerrainMesh';
+import { getTerrainHeight } from './TerrainMesh';
 
 const REGION_WALL: Record<string, string> = {
-  british: '#c0b090',  nordic:  '#b8a888',  western: '#c8b888',
-  alpine:  '#c4b8a0',  iberian: '#c89860',  italian: '#c89870',
-  eastern: '#bca880',  russian: '#bca070',
+  british: '#c0b090', nordic: '#b8a888', western: '#c8b888',
+  alpine: '#c4b8a0', iberian: '#c89860', italian: '#c89870',
+  eastern: '#bca880', russian: '#bca070',
 };
 const REGION_ROOF: Record<string, string> = {
-  british: '#5a3820',  nordic:  '#7a2818',  western: '#6a4020',
-  alpine:  '#506070',  iberian: '#884018',  italian: '#804018',
-  eastern: '#4a5830',  russian: '#6a3018',
+  british: '#5a3820', nordic: '#7a2818', western: '#6a4020',
+  alpine: '#506070', iberian: '#884018', italian: '#804018',
+  eastern: '#4a5830', russian: '#6a3018',
 };
 const CITY_REGION: Record<string, string> = {
-  london: 'british',   edinburgh: 'british',
-  paris: 'western',    amsterdam: 'western',  brussels: 'western',  frankfurt: 'western',
-  madrid: 'iberian',   lisbon: 'iberian',     barcelona: 'iberian', marseille: 'western',
-  roma: 'italian',     napoli: 'italian',     palermo: 'italian',   venezia: 'italian',
-  zurich: 'alpine',    munchen: 'alpine',     wien: 'alpine',       berlin: 'alpine',
+  london: 'british', edinburgh: 'british',
+  paris: 'western', amsterdam: 'western', brussels: 'western', frankfurt: 'western',
+  madrid: 'iberian', lisbon: 'iberian', barcelona: 'iberian', marseille: 'western',
+  roma: 'italian', napoli: 'italian', palermo: 'italian', venezia: 'italian',
+  zurich: 'alpine', munchen: 'alpine', wien: 'alpine', berlin: 'alpine',
   stockholm: 'nordic', copenhagen: 'nordic',
-  warszawa: 'eastern', budapest: 'eastern',   zagreb: 'eastern',
-  sarajevo: 'eastern', sofia: 'eastern',      bucuresti: 'eastern', athina: 'eastern',
-  kyiv: 'russian',     moskva: 'russian',
+  warszawa: 'eastern', budapest: 'eastern', zagreb: 'eastern',
+  sarajevo: 'eastern', sofia: 'eastern', bucuresti: 'eastern', athina: 'eastern',
+  kyiv: 'russian', moskva: 'russian',
 };
 
 // Lighthouse cities — skip standard building (LighthouseMesh renders these)
-const LIGHTHOUSE_CITIES = new Set(['lisbon', 'edinburgh', 'palermo', 'athina', 'stockholm', 'amsterdam']);
+const LIGHTHOUSE_CITIES = new Set(['lisbon', 'palermo', 'stockholm', 'amsterdam']);
 
 // ── CUSTOM ICONIC LANDMARKS (Three.js low-poly primitives) ──
 
@@ -276,6 +271,46 @@ function StationBuilding({ wallHex, roofHex }: { wallHex: string; roofHex: strin
   );
 }
 
+function EdinburghCastle() {
+  return (
+    <group scale={[0.42, 0.42, 0.42]}>
+      {/* Main rocky base mound */}
+      <mesh position={[0, 0.05, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.2, 0.1, 0.9]} />
+        <meshStandardMaterial color="#55555d" roughness={0.9} flatShading />
+      </mesh>
+      {/* Main keep block */}
+      <mesh position={[-0.1, 0.28, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.65, 0.36, 0.65]} />
+        <meshStandardMaterial color="#888890" roughness={0.8} flatShading />
+      </mesh>
+      {/* Castle Tower 1 */}
+      <mesh position={[0.34, 0.34, 0.22]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.18, 0.18, 0.6, 6]} />
+        <meshStandardMaterial color="#7c7c84" roughness={0.8} flatShading />
+      </mesh>
+      <mesh position={[0.34, 0.64, 0.22]} castShadow>
+        <coneGeometry args={[0.22, 0.18, 6]} />
+        <meshStandardMaterial color="#b2443a" roughness={0.7} flatShading />
+      </mesh>
+      {/* Castle Tower 2 */}
+      <mesh position={[0.34, 0.34, -0.22]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.18, 0.18, 0.6, 6]} />
+        <meshStandardMaterial color="#7c7c84" roughness={0.8} flatShading />
+      </mesh>
+      <mesh position={[0.34, 0.64, -0.22]} castShadow>
+        <coneGeometry args={[0.22, 0.18, 6]} />
+        <meshStandardMaterial color="#b2443a" roughness={0.7} flatShading />
+      </mesh>
+      {/* Portcullis Doorway */}
+      <mesh position={[-0.1, 0.18, 0.335]} castShadow>
+        <boxGeometry args={[0.2, 0.22, 0.02]} />
+        <meshStandardMaterial color="#3a2008" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
 interface Props {
   city: City;
   interactive: boolean;
@@ -288,20 +323,19 @@ export function CityMarker({ city, interactive, onClick }: Props) {
 
   const [wx, wz] = toWorld(city.x, city.y);
 
-  // Dynamic elevation alignment to match the terrain mesh 1.25× height perfectly
-  const rawElev = CITY_ELEVATION[city.id] ?? 0.07;
-  const baseY = rawElev * 1.25;
+  // Dynamic elevation alignment to snap perfectly to the terrain mesh height
+  const baseY = getTerrainHeight(city.x, city.y);
 
   const regionKey = CITY_REGION[city.id] ?? 'eastern';
-  const wallHex   = REGION_WALL[regionKey] ?? '#c8b888';
-  const roofHex   = REGION_ROOF[regionKey] ?? '#5a3820';
+  const wallHex = REGION_WALL[regionKey] ?? '#c8b888';
+  const roofHex = REGION_ROOF[regionKey] ?? '#5a3820';
 
-  const handleOver  = useCallback((e: ThreeEvent<PointerEvent>) => {
+  const handleOver = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     if (interactive) { setHovered(true); document.body.style.cursor = 'pointer'; }
   }, [interactive]);
 
-  const handleOut   = useCallback((e: ThreeEvent<PointerEvent>) => {
+  const handleOut = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation(); setHovered(false); document.body.style.cursor = 'default';
   }, []);
 
@@ -315,13 +349,14 @@ export function CityMarker({ city, interactive, onClick }: Props) {
   // Render distinctive custom 3D landmark shapes for major cities
   const renderLandmark = () => {
     switch (city.id) {
-      case 'paris':     return <EiffelTower />;
-      case 'moskva':    return <OnionDomeCathedral />;
-      case 'london':    return <BigBen />;
-      case 'roma':      return <RomanRotunda />;
-      case 'athina':    return <GreekTemple />;
+      case 'paris': return <EiffelTower />;
+      case 'moskva': return <OnionDomeCathedral />;
+      case 'london': return <BigBen />;
+      case 'roma': return <RomanRotunda />;
+      case 'athina': return <GreekTemple />;
       case 'amsterdam': return <CanalHouses />;
-      default:          return <StationBuilding wallHex={wallHex} roofHex={roofHex} />;
+      case 'edinburgh': return <EdinburghCastle />;
+      default: return <StationBuilding wallHex={wallHex} roofHex={roofHex} />;
     }
   };
 
@@ -330,6 +365,11 @@ export function CityMarker({ city, interactive, onClick }: Props) {
     return (
       <group position={[wx, baseY, wz]}>
         <Billboard position={[0, 1.2, 0]}>
+          {/* Connecting pin line */}
+          <mesh position={[0, -0.6, -0.02]}>
+            <cylinderGeometry args={[0.004, 0.004, 1.2, 4]} />
+            <meshBasicMaterial color="#ffffff" opacity={0.20} transparent />
+          </mesh>
           {/* Rounded black pill badge backdrop */}
           <mesh position={[0, 0.16, -0.02]} receiveShadow={false}>
             <planeGeometry args={[badgeWidth, 0.44]} />
@@ -350,7 +390,7 @@ export function CityMarker({ city, interactive, onClick }: Props) {
   }
 
   // Calculate suitable elevation offset depending on the height of the landmark
-  const labelY = city.id === 'paris' ? 0.85 : city.id === 'moskva' ? 0.60 : city.id === 'london' ? 0.65 : 0.52;
+  const labelY = city.id === 'paris' ? 0.65 : city.id === 'moskva' ? 0.52 : city.id === 'london' ? 0.55 : city.id === 'edinburgh' ? 0.48 : 0.40;
 
   return (
     <group
@@ -363,22 +403,58 @@ export function CityMarker({ city, interactive, onClick }: Props) {
     >
       {renderLandmark()}
 
+      {/* Floating Connecting Line from label to landmark */}
+      <mesh position={[0, (labelY + 0.16) / 2, -0.02]}>
+        <cylinderGeometry args={[0.004, 0.004, labelY + 0.16, 4]} />
+        <meshBasicMaterial color="#ffffff" opacity={0.20} transparent />
+      </mesh>
+
       {/* Label Billboards with premium rounded pill badges */}
       <Billboard position={[0, labelY, 0]}>
         <mesh position={[0, 0.16, -0.02]} receiveShadow={false}>
           <planeGeometry args={[badgeWidth, 0.44]} />
-          <meshBasicMaterial color="#0b0f19" opacity={0.88} transparent depthWrite={false} />
+          <meshBasicMaterial color="#07111e" opacity={0.92} transparent depthWrite={false} />
         </mesh>
         <Text
-          fontSize={0.26}
+          fontSize={0.25}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
           position={[0, 0.16, 0]}
+          fontWeight="bold"
         >
           {city.name.toUpperCase()}
         </Text>
       </Billboard>
+
+      {/* Floating Train Station Building tooltip on Hover (Clean Graph Node details) */}
+      {hovered && interactive && (
+        <Billboard position={[0, labelY + 0.72, 0]}>
+          <mesh receiveShadow={false}>
+            <planeGeometry args={[2.8, 0.44]} />
+            <meshBasicMaterial color="#050a14" opacity={0.94} transparent depthWrite={false} />
+          </mesh>
+          <Text
+            fontSize={0.14}
+            color="#ffd700"
+            fontWeight="bold"
+            anchorX="center"
+            anchorY="middle"
+            position={[0, 0.12, 0]}
+          >
+            {"BUILD TRAIN STATION"}
+          </Text>
+          <Text
+            fontSize={0.11}
+            color="#b0c5e0"
+            anchorX="center"
+            anchorY="middle"
+            position={[0, -0.10, 0]}
+          >
+            {"Requires 1-3 matching cards"}
+          </Text>
+        </Billboard>
+      )}
     </group>
   );
 }
