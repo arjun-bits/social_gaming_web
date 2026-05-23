@@ -1,0 +1,19 @@
+{
+  "name": "social-gaming-web",
+  "version": "1.0.0",
+  "description": "Real-time multiplayer party gaming platform — Ticket to Ride: Europe & Secret Signals",
+  "scripts": {
+    "test:e2e":  "node tests/test_e2e_gameplay.js",
+    "test:ttre": "node tests/test_ttre_gameplay.js",
+    "test:full": "node tests/test_full_gameplay.js"
+  },
+  "keywords": ["party-games", "multiplayer", "websocket", "three.js", "react"],
+  "author": "arjun",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^24.43.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.34.5"
+  }
+}

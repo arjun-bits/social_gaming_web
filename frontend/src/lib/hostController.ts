@@ -113,11 +113,13 @@ class HostController {
     public startGame() {
         if (this.game) {
             // Exclude HOST — only real players should be assigned game roles
-            const activePlayerIds = this.players
-                .filter(p => p.isConnected && p.id !== 'HOST')
-                .map(p => p.id);
-            this.game.assignPlayers(activePlayerIds);
-            this.game.startPlaying(); // In real app, pass usedWords
+            const activePlayers = this.players.filter(p => p.isConnected && p.id !== 'HOST');
+            const activePlayerIds = activePlayers.map(p => p.id);
+            // Build name map so engines can use real nicknames (especially TTRE)
+            const nameMap: Record<string, string> = {};
+            activePlayers.forEach(p => { nameMap[p.id] = p.nickname; });
+            this.game.assignPlayers(activePlayerIds, nameMap);
+            this.game.startPlaying();
             this.broadcastState();
         }
     }

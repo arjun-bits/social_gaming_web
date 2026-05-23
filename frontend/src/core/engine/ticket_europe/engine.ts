@@ -40,10 +40,22 @@ export class TTREGameEngine implements GameInterface {
         // any one-time setup
     }
 
-    assignPlayers(playerIds: string[]): void {
-        // Create player state for all assigned players
+    assignPlayers(playerIds: string[], nameMap?: Record<string, string>): void {
+        // Create player state for all assigned players using real names
         for (const id of playerIds) {
-            this.addPlayer(id, 'Player ' + id.substring(0, 4));
+            const name = nameMap?.[id] || ('Player ' + id.substring(0, 4));
+            this.addPlayer(id, name);
+        }
+        // Apply color preferences set in lobby if available
+        const colorPrefs = (this.state.data as any).playerColorPrefs || {};
+        for (const [pid, colorId] of Object.entries(colorPrefs)) {
+            const colorHexMap: Record<string, string> = {
+                red: '#E53E3E', blue: '#3182CE', green: '#38A169',
+                yellow: '#D69E2E', black: '#718096'
+            };
+            if (this.state.data.players[pid]) {
+                this.state.data.players[pid].color = colorHexMap[colorId as string] || this.state.data.players[pid].color;
+            }
         }
     }
 
@@ -56,23 +68,42 @@ export class TTREGameEngine implements GameInterface {
     }
 
     handleAction(playerId: string, payload: any): void {
-        const p = this.state.data.players[playerId];
-        // Allow HOST to trigger start_game even without a player state entry
-        if (!p && payload?.action !== 'start_game') return;
-
         const action = payload?.action;
+
+        // HOST-only actions that don't require a player state entry
+        if (action === 'start_game' || action === 'setPlayerColors') {
+            if (action === 'start_game' && playerId === 'HOST') {
+                this.startGame();
+            }
+            if (action === 'setPlayerColors' && playerId === 'HOST') {
+                // Store color preferences for when players are assigned
+                (this.state.data as any).playerColorPrefs = payload.colorMap || {};
+                // Apply immediately to any existing player states
+                const colorHexMap: Record<string, string> = {
+                    red: '#E53E3E', blue: '#3182CE', green: '#38A169',
+                    yellow: '#D69E2E', black: '#718096'
+                };
+                for (const [pid, colorId] of Object.entries(payload.colorMap || {})) {
+                    if (this.state.data.players[pid]) {
+                        this.state.data.players[pid].color = colorHexMap[colorId as string] || this.state.data.players[pid].color;
+                    }
+                }
+            }
+            return;
+        }
+
+        const p = this.state.data.players[playerId];
+        if (!p) return;
+
         switch (action) {
-            case 'start_game':
-                if (playerId === 'HOST') this.startGame();
-                break;
             case 'draw_card':
-                if (p) this.drawCard(playerId, payload.color); // color or 'deck'
+                this.drawCard(playerId, payload.color); // color or 'deck'
                 break;
             case 'claim_route':
-                if (p) this.claimRoute(playerId, payload.routeId, payload.cardsUsed);
+                this.claimRoute(playerId, payload.routeId, payload.cardsUsed);
                 break;
             case 'build_station':
-                if (p) this.buildStation(playerId, payload.cityId, payload.cardsUsed);
+                this.buildStation(playerId, payload.cityId, payload.cardsUsed);
                 break;
         }
     }

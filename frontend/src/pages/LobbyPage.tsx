@@ -7,6 +7,7 @@ import { hostController } from '../lib/hostController'
 import { CLIENT_GAME_REGISTRY, getClientGameMeta } from '../games/gameRegistry'
 import { CastModal } from '../components/CastModal'
 import { SecretSignalsLobby } from '../games/secret_signals/SecretSignalsLobby'
+import { TTRELobby } from '../games/ticket_europe/TTRELobby'
 import type { GameClientMeta } from '../games/gameRegistry'
 
 export function LobbyPage() {
@@ -50,7 +51,7 @@ export function LobbyPage() {
   const effectiveHost = (roomInfo?.localIp && host === 'localhost')
     ? `${roomInfo.localIp}:5173`
     : window.location.host
-  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}`
+  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}&pin=${roomInfo?.tvPin || ''}`
 
   const handleSelectGame = (gameId: string) => {
     setSelectedGameId(gameId)
@@ -58,6 +59,7 @@ export function LobbyPage() {
   }
 
   const handleStartGame = () => {
+    // Secret Signals: validate team/spymaster assignments
     if (selectedGameId === 'secret_signals' && game) {
       const pTeams = game.playerTeams || {}
       const pLeader = game.playerIsLeader || {}
@@ -68,7 +70,6 @@ export function LobbyPage() {
         return
       }
 
-      // Use p.uuid consistently (normalized above)
       const teamASpies = players.filter((p: any) => pTeams[p.uuid] === 'teamA' && pLeader[p.uuid])
       const teamBSpies = players.filter((p: any) => pTeams[p.uuid] === 'teamB' && pLeader[p.uuid])
       const teamAOps = players.filter((p: any) => pTeams[p.uuid] === 'teamA' && !pLeader[p.uuid])
@@ -91,11 +92,14 @@ export function LobbyPage() {
         return
       }
     }
+    // For all games: check minimum player count
+    if (players.length < (selectedMeta?.minPlayers ?? 2)) {
+      alert(`Need at least ${selectedMeta?.minPlayers ?? 2} players to start.`)
+      return
+    }
 
     setStarting(true)
     hostController.startGame()
-    
-    // Navigate to host control panel after start
     setTimeout(() => navigate(`/host/${room}`), 400)
   }
 
@@ -151,7 +155,7 @@ export function LobbyPage() {
           <span className="font-poppins font-black text-xl text-white">Party<span className="text-[#FF007F]">Hub</span></span>
         </div>
 
-        {/* QR + Room Code */}
+        {/* QR + Room Code + PIN */}
         <div className="bg-black rounded-2xl p-4 flex flex-col items-center gap-3 border border-white/5">
           <div className="bg-white p-2.5 rounded-xl">
             <QRCodeSVG value={joinUrl} size={150} />
@@ -160,6 +164,13 @@ export function LobbyPage() {
             <p className="text-[#6B7280] text-[9px] uppercase tracking-[0.3em] mb-1">Scan to Join</p>
             <p className="font-poppins font-black text-3xl text-[#00E5FF] tracking-[0.2em]">{room}</p>
           </div>
+          {/* TV PIN — shown so host can announce it; QR code auto-embeds it */}
+          {roomInfo?.tvPin && (
+            <div className="w-full bg-[#FF007F]/10 border border-[#FF007F]/30 rounded-xl px-3 py-2 flex items-center justify-between">
+              <span className="text-[#FF007F] text-[9px] uppercase tracking-widest font-bold">TV PIN</span>
+              <span className="font-poppins font-black text-xl text-[#FF007F] tracking-[0.3em]">{roomInfo.tvPin}</span>
+            </div>
+          )}
         </div>
 
         {/* Player count */}
@@ -180,7 +191,7 @@ export function LobbyPage() {
               value={wordPack}
               onChange={e => {
                 setWordPack(e.target.value)
-                wsClient.sendAction({ action: 'changeCategory', category: e.target.value })
+                hostController.handleLocalAction({ action: 'changeCategory', category: e.target.value })
               }}
             >
               {availablePacks.map(p => <option key={p} value={p}>{p}</option>)}
@@ -353,14 +364,23 @@ export function LobbyPage() {
           </>
         ) : (
           <section className="flex-1">
-            {selectedGameId === 'secret_signals' && (
+          {selectedGameId === 'secret_signals' && (
               <SecretSignalsLobby
                 players={players}
                 playerTeams={game?.playerTeams || {}}
                 playerIsLeader={game?.playerIsLeader || {}}
                 onAutoAssign={handleAutoAssign}
               />
-            ) || (
+            )}
+            {selectedGameId === 'ticket_europe' && (
+              <TTRELobby
+                players={players}
+                onStartReady={(colorMap) => {
+                  hostController.handleLocalAction({ action: 'setPlayerColors', colorMap })
+                }}
+              />
+            )}
+            {selectedGameId !== 'secret_signals' && selectedGameId !== 'ticket_europe' && (
               <div className="flex items-center justify-center h-full text-[#6B7280] italic">
                 Game specific lobby coming soon...
               </div>

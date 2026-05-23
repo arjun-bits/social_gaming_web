@@ -6,7 +6,7 @@ export interface GameInterface {
     minPlayers: number;
     maxPlayers: number;
     init(): void;
-    assignPlayers(playerIds: string[]): void;
+    assignPlayers(playerIds: string[], nameMap?: Record<string, string>): void;
     startPlaying(usedWords?: Set<string>): void;
     handleAction(playerId: string, payload: any): void;
     getStateForPlayer(playerId: string): any;

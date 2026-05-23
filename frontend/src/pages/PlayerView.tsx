@@ -10,6 +10,8 @@ const countLabel = (n: number) => n === -1 ? '∞' : String(n)
 export function PlayerView() {
   const [searchParams] = useSearchParams()
   const room = searchParams.get('room') || ''
+  // PIN can be embedded in URL (?pin=XXXX) so players joining via QR skip the PIN screen
+  const urlPin = searchParams.get('pin') || ''
 
   const [nickname, setNickname] = useState(
     searchParams.get('name') || localStorage.getItem('nickname') || ''
@@ -17,8 +19,8 @@ export function PlayerView() {
   const [hasRegistered, setHasRegistered] = useState(
     !!(searchParams.get('name') || localStorage.getItem('nickname'))
   )
-  const [tvPin, setTvPin] = useState('')
-  const [hasPin, setHasPin] = useState(false)
+  const [tvPin, setTvPin] = useState(urlPin)
+  const [hasPin, setHasPin] = useState(false) // will be set true once registered + pin ready
   const [p2pConnected, setP2pConnected] = useState(false)
   const [gameState, setGameState] = useState<any>(null)
 
@@ -32,6 +34,10 @@ export function PlayerView() {
 
     if (hasRegistered) {
       wsClient.connect(playerId.current, nickname, room)
+      // If PIN came from URL, auto-connect without showing PIN screen
+      if (urlPin && !hasPin) {
+        setHasPin(true)
+      }
     }
   }, [hasRegistered, nickname, room])
 
@@ -609,7 +615,18 @@ function OperativeView({ game, myTeam, playerId }: { game: any; myTeam: string; 
           {game.grid.map((card: any, idx: number) => {
             const isPending = pendingCard?.index === idx
             const canTap = !card.isRevealed && isMyTurn && game.turnPhase === 'guessing'
+
+            // Color tint for every card (user wants everyone to see colors)
+            const cardTeamColor = !card.isRevealed
+              ? card.team === 'teamA'   ? '#00E5FF'
+              : card.team === 'teamB'   ? '#FF007F'
+              : card.team === 'assassin'? '#ff0000'
+              : '#6B7280'
+              : null
+
             let bg = 'bg-[#1C1C24] border border-white/5'
+            let extraStyle: React.CSSProperties = {}
+
             if (card.isRevealed) {
               bg = card.team === 'teamA' ? 'bg-[#00E5FF]'
                 : card.team === 'teamB' ? 'bg-[#FF007F]'
@@ -619,12 +636,21 @@ function OperativeView({ game, myTeam, playerId }: { game: any; myTeam: string; 
               bg = myTeam === 'teamA'
                 ? 'bg-[#00E5FF]/15 border-2 border-[#00E5FF] neon-blue'
                 : 'bg-[#FF007F]/15 border-2 border-[#FF007F] neon-pink'
+            } else if (cardTeamColor) {
+              // Show color as subtle background tint so all players know card teams
+              bg = `rounded-xl border`
+              extraStyle = {
+                backgroundColor: `${cardTeamColor}15`,
+                borderColor: `${cardTeamColor}40`,
+                boxShadow: `inset 0 0 8px ${cardTeamColor}10`,
+              }
             }
             return (
               <button
                 key={idx}
                 className={`rounded-xl flex items-center justify-center transition-all duration-100 ${bg}
-                  ${card.isRevealed ? 'opacity-60 cursor-default' : canTap ? 'cursor-pointer active:scale-95' : 'cursor-default opacity-40'}`}
+                  ${card.isRevealed ? 'opacity-60 cursor-default' : canTap ? 'cursor-pointer active:scale-95' : 'cursor-default'}`}
+                style={extraStyle}
                 onClick={() => tapCard(idx, card.word, card.isRevealed)}
                 disabled={card.isRevealed || !canTap}
               >

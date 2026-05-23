@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { wsClient } from '../lib/wsClient'
 import { hostController } from '../lib/hostController'
 import { CastModal } from '../components/CastModal'
+import { EuropeBoard3D } from '../games/ticket_europe/components/EuropeBoard3D'
 
 const wordCategories = {
   Standard: [],
@@ -26,7 +26,7 @@ export function HostView() {
   useEffect(() => {
     if (!hasConnected.current) {
       hasConnected.current = true
-      wsClient.connect('HOST', 'TV Host', room)
+      // HostView uses hostController (P2P) — no wsClient needed here
       hostController.initHost(room || 'DEFAULT')
     }
     const unsub = hostController.subscribe(setGameState)
@@ -52,15 +52,26 @@ export function HostView() {
   const roomInfo = gameState?.room
   const game = gameState?.game
   const localIp = roomInfo?.localIp
+  // Detect which game is running
+  const gameId = gameState?.gameId || 'secret_signals'
+  const isTTRE = gameId === 'ticket_europe'
 
   const effectiveHost = (localIp && window.location.hostname === 'localhost')
     ? `${localIp}:5173`
     : window.location.host
-  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}`
+  // Include PIN in join URL so players auto-connect
+  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}&pin=${roomInfo?.tvPin || ''}`
 
-  const isLobby = !game || game.phase === 'lobby' || game.phase === 'teamSetup'
-  const isPlaying = game?.phase === 'playing'
-  const isGameOver = game?.phase === 'gameOver'
+  // game phase — support both SS (game.phase) and TTRE (game.data.phase)
+  const gamePhase = game?.phase || game?.data?.phase
+  const isLobby = !game || gamePhase === 'lobby' || gamePhase === 'teamSetup'
+  const isPlaying = gamePhase === 'playing'
+  const isGameOver = gamePhase === 'gameOver'
+
+  // TTRE specific: current player and their state
+  const ttreData = game?.data
+  const ttreCurrentPlayerId = ttreData?.playerOrder?.[ttreData?.currentPlayerIndex]
+  const ttreCurrentPlayer = ttreData?.players?.[ttreCurrentPlayerId]
 
   const playersRaw = gameState?.room?.players || gameState?.players || []
   const normalizedPlayers = playersRaw.map((p: any) => ({ ...p, uuid: p.uuid || p.id }))
@@ -117,10 +128,15 @@ export function HostView() {
               {isPlaying ? 'Game in Progress' : isGameOver ? 'Game Over' : 'In Lobby'}
             </span>
           </div>
-          {isPlaying && (
+          {isPlaying && !isTTRE && (
             <p className="text-[#6B7280] text-[10px] mt-1">
               {game.currentTurn === 'teamA' ? '🔵 Blue' : '🩷 Pink'} Team's Turn
               {game.turnPhase === 'givingClue' ? ' — Spymaster thinking' : ` — ${game.guessesRemaining} guess${game.guessesRemaining !== 1 ? 'es' : ''} left`}
+            </p>
+          )}
+          {isPlaying && isTTRE && ttreCurrentPlayer && (
+            <p className="text-[#6B7280] text-[10px] mt-1">
+              🚂 {ttreCurrentPlayer.name}'s turn · {ttreCurrentPlayer.trainsLeft} trains left
             </p>
           )}
         </div>
@@ -182,12 +198,21 @@ export function HostView() {
             <h2 className="font-poppins font-black text-3xl text-white tracking-tight">
               {isLobby ? 'Lobby Controls' : isGameOver ? 'Game Over' : 'Host Control Panel'}
             </h2>
-            <p className="text-[#6B7280] text-xs uppercase tracking-[0.2em] mt-1">Secret Signals · Room {room}</p>
+            <p className="text-[#6B7280] text-xs uppercase tracking-[0.2em] mt-1">
+              {isTTRE ? 'Ticket to Ride Europe' : 'Secret Signals'} · Room {room}
+            </p>
           </div>
-          {isPlaying && (
+          {isPlaying && !isTTRE && (
             <div className="flex items-center gap-3">
               <div className="bg-[#00E5FF] text-black font-poppins font-black text-xl w-11 h-11 rounded-xl flex items-center justify-center shadow-blue">{game.teamARemaining}</div>
               <div className="bg-[#FF007F] text-white font-poppins font-black text-xl w-11 h-11 rounded-xl flex items-center justify-center shadow-pink">{game.teamBRemaining}</div>
+            </div>
+          )}
+          {isPlaying && isTTRE && ttreCurrentPlayer && (
+            <div className="flex items-center gap-2 bg-[#FF5733]/10 border border-[#FF5733]/30 px-4 py-2 rounded-xl">
+              <div className="w-4 h-4 rounded-full" style={{ background: ttreCurrentPlayer.color }} />
+              <span className="font-poppins font-bold text-sm text-white">{ttreCurrentPlayer.name}</span>
+              <span className="text-[#6B7280] text-xs">playing</span>
             </div>
           )}
         </div>
@@ -202,7 +227,7 @@ export function HostView() {
                 {Object.keys(wordCategories).map(cat => (
                   <button
                     key={cat}
-                    onClick={() => wsClient.sendAction({ action: 'changeCategory', category: cat })}
+                    onClick={() => hostController.handleLocalAction({ action: 'changeCategory', category: cat })}
                     className="py-3 px-4 rounded-xl border-2 font-poppins font-bold text-sm transition-all"
                     style={{
                       borderColor: game?.selectedCategory === cat ? '#00E5FF' : 'rgba(255,255,255,0.1)',
@@ -225,7 +250,7 @@ export function HostView() {
               </div>
             </div>
 
-            {/* Start button */}
+            {/* Start button — shown only if game has not started yet */}
             <button
               className="py-5 rounded-2xl font-poppins font-black text-2xl text-[#0A0A0F] transition-all active:scale-95 disabled:opacity-25 disabled:grayscale"
               style={{
@@ -234,7 +259,7 @@ export function HostView() {
               }}
               disabled={players.length < 2}
               onClick={() => {
-                wsClient.sendAction({ action: 'startGame', gameId: 'secret_signals' })
+                hostController.handleLocalAction({ action: 'startGame', gameId: 'secret_signals' })
               }}
             >
               🚀 START OPERATION
@@ -245,8 +270,8 @@ export function HostView() {
           </div>
         )}
 
-        {/* ── PLAYING CONTROLS ── */}
-        {isPlaying && (
+        {/* ── PLAYING CONTROLS (Game-Specific) ── */}
+        {isPlaying && !isTTRE && (
           <div className="flex flex-col gap-6 animate-slide-up">
             {/* Current clue */}
             {game.currentClue && (
@@ -263,28 +288,34 @@ export function HostView() {
               </div>
             )}
 
-            {/* Host override grid — see all cards */}
+            {/* Host override grid — see all cards with colors */}
             <div className="bg-[#111118] rounded-2xl border border-white/5 p-5 flex-1">
               <p className="text-[9px] uppercase tracking-widest text-[#6B7280] mb-3">Board Overview (Host Only)</p>
               <div className="grid grid-cols-5 gap-2">
                 {(game.grid || []).map((card: any, idx: number) => {
-                  const bgClass = card.isRevealed
-                    ? card.team === 'teamA' ? 'bg-[#00E5FF]/30 border-[#00E5FF]/50'
-                      : card.team === 'teamB' ? 'bg-[#FF007F]/30 border-[#FF007F]/50'
-                        : card.team === 'assassin' ? 'bg-black border-red-600'
-                          : 'bg-white/10 border-white/10'
-                    : card.team === 'teamA' ? 'bg-[#00E5FF]/10 border-[#00E5FF]/30'
-                      : card.team === 'teamB' ? 'bg-[#FF007F]/10 border-[#FF007F]/30'
-                        : card.team === 'assassin' ? 'bg-black/80 border-red-900'
-                          : 'bg-white/5 border-white/10'
-                  const textColor = card.isRevealed ? 'opacity-40' : 'opacity-100'
+                  // Use inline styles to avoid Tailwind class purging dynamic color strings
+                  const teamColor = 
+                    card.team === 'teamA' ? '#00E5FF'
+                    : card.team === 'teamB' ? '#FF007F'
+                    : card.team === 'assassin' ? '#EF4444'
+                    : '#6B7280'
+                  const bgAlpha = card.isRevealed ? '50' : '18'
+                  const borderAlpha = card.isRevealed ? '80' : '40'
                   return (
                     <div
                       key={idx}
-                      className={`${bgClass} border rounded-lg px-2 py-2 flex items-center justify-center text-center ${textColor} transition-all`}
+                      className="rounded-lg px-2 py-2 flex items-center justify-center text-center border transition-all"
+                      style={{
+                        background: card.team === 'assassin' && !card.isRevealed
+                          ? 'rgba(0,0,0,0.7)'
+                          : `${teamColor}${bgAlpha}`,
+                        borderColor: `${teamColor}${borderAlpha}`,
+                        opacity: card.isRevealed ? 0.45 : 1,
+                      }}
                     >
-                      <span className={`font-roboto font-bold text-[10px] uppercase tracking-wide leading-tight
-                        ${card.team === 'teamA' ? 'text-[#00E5FF]' : card.team === 'teamB' ? 'text-[#FF007F]' : card.team === 'assassin' ? 'text-red-500' : 'text-[#6B7280]'}`}
+                      <span
+                        className="font-roboto font-bold text-[10px] uppercase tracking-wide leading-tight"
+                        style={{ color: card.team === 'assassin' ? '#EF4444' : teamColor }}
                       >
                         {card.team === 'assassin' && '☠ '}{card.word}
                       </span>
@@ -298,7 +329,7 @@ export function HostView() {
             <div className="flex gap-3">
               <button
                 className="flex-1 py-3 rounded-xl border border-yellow-500/30 text-yellow-500 font-bold text-sm hover:bg-yellow-500/5 transition"
-                onClick={() => wsClient.sendAction({ action: 'hostPassTurn' })}
+                onClick={() => hostController.handleLocalAction({ action: 'passTurn' })}
               >
                 ⏭ Force Next Turn
               </button>
@@ -312,7 +343,38 @@ export function HostView() {
           </div>
         )}
 
+        {/* ── TTRE PLAYING CONTROLS ── */}
+        {isPlaying && isTTRE && (
+          <div className="relative flex-1 overflow-hidden rounded-2xl" style={{ minHeight: 500 }}>
+            {/* Map fills everything */}
+            <EuropeBoard3D gameState={ttreData} interactive={false} />
+
+            {/* Player scores — top-left overlay */}
+            <div className="absolute top-3 left-3 z-20 bg-black/65 backdrop-blur-md rounded-xl border border-white/10 p-3 min-w-[160px]">
+              <p className="text-[9px] uppercase tracking-widest text-[#6B7280] mb-2">Player Scores</p>
+              <div className="flex flex-col gap-1.5">
+                {Object.values(ttreData?.players || {}).map((p: any) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
+                    <span className="text-white text-xs font-bold truncate">{p.name}</span>
+                    <span className="ml-auto text-[#00E5FF] text-xs font-bold">⭐ {p.score}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* End session — bottom overlay */}
+            <button
+              className="absolute bottom-3 right-3 z-20 px-4 py-2 rounded-xl border border-[#FF007F]/40 text-[#FF007F] font-bold text-sm bg-black/60 backdrop-blur-sm hover:bg-[#FF007F]/10 transition"
+              onClick={() => setShowEndModal(true)}
+            >
+              🛑 End Session
+            </button>
+          </div>
+        )}
+
         {/* ── GAME OVER CONTROLS ── */}
+
         {isGameOver && (
           <div className="flex flex-col items-center justify-center flex-1 gap-8 animate-pop-in">
             <div className="text-center">

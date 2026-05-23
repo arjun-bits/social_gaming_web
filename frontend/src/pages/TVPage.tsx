@@ -51,7 +51,7 @@ export function TVPage() {
   const effectiveHost = (roomInfo?.localIp && host === 'localhost')
     ? `${roomInfo.localIp}:5173`
     : window.location.host
-  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}`
+  const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}&pin=${roomInfo?.tvPin || ''}`
 
   const isLobby = !game || game.phase === 'lobby' || game.phase === 'teamSetup'
   const isGameOver = game?.phase === 'gameOver'
@@ -103,21 +103,32 @@ function TVLobbyView({ roomInfo, game, joinUrl, room }: any) {
   const teamAPlayers = players.filter((p: any) => game?.playerTeams?.[p.uuid] === 'teamA')
   const teamBPlayers = players.filter((p: any) => game?.playerTeams?.[p.uuid] === 'teamB')
   const unassigned = players.filter((p: any) => !game?.playerTeams?.[p.uuid])
+  const isConfiguring = roomInfo?.isConfiguring && game
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-10 px-16 py-16">
+    <div className="flex-1 flex flex-col items-center justify-center gap-10 px-16 py-12 relative overflow-hidden">
+      {/* Animated background orbs */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute w-[600px] h-[600px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.07) 0%, transparent 70%)', top: '-200px', left: '-100px', animation: 'float 8s ease-in-out infinite' }} />
+        <div className="absolute w-[400px] h-[400px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(255,0,127,0.06) 0%, transparent 70%)', bottom: '-100px', right: '-50px', animation: 'float 10s ease-in-out infinite reverse' }} />
+      </div>
+
       {/* Title */}
-      <div className="text-center animate-fade-in">
-        <p className="text-[#6B7280] text-sm uppercase tracking-[0.4em] mb-3 font-inter">Midnight Arcade Presents</p>
+      <div className="text-center animate-fade-in z-10">
+        <p className="text-[#6B7280] text-sm uppercase tracking-[0.5em] mb-4 font-inter">Midnight Arcade Presents</p>
         <h1 className="font-poppins font-black text-7xl text-white tracking-tight">
           Secret <span className="text-[#00E5FF]">Signals</span>
         </h1>
-        <p className="text-[#6B7280] text-lg mt-3">Scan the code to join · Pick your role · Wait for the host</p>
+        <p className="text-[#6B7280] text-lg mt-4">
+          {isConfiguring ? 'Teams locked in — waiting for launch...' : 'Scan the code to join · Pick your role · Wait for the host'}
+        </p>
       </div>
 
-      {/* Team display or generic waiting */}
-      {roomInfo?.isConfiguring && game ? (
-        <div className="w-full max-w-5xl flex gap-8 animate-slide-up">
+      {/* Teams display when configuring, else player roster */}
+      {isConfiguring ? (
+        <div className="w-full max-w-5xl flex gap-8 animate-slide-up z-10">
           {/* Blue Team */}
           <div className="flex-1 bg-black/40 rounded-3xl border border-[#00E5FF]/20 p-6">
             <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[#00E5FF]/20">
@@ -151,13 +162,55 @@ function TVLobbyView({ roomInfo, game, joinUrl, room }: any) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex items-center justify-center">
-            <p className="text-[#6B7280] text-xl italic font-poppins">Waiting for Host to select and configure a game...</p>
+        /* Rich idle state: player roster + QR prompt */
+        <div className="w-full max-w-4xl flex gap-10 items-center z-10 animate-fade-in">
+          {/* Left: Big join prompt */}
+          <div className="flex-1 flex flex-col gap-6">
+            <div className="bg-white/5 rounded-3xl border border-white/10 p-8 flex items-center gap-8">
+              <div className="bg-white p-3 rounded-2xl shrink-0">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(joinUrl)}&size=120x120`}
+                  alt="Join QR" className="w-24 h-24" />
+              </div>
+              <div>
+                <p className="text-[#6B7280] text-xs uppercase tracking-[0.3em] mb-2">Scan to join instantly</p>
+                <p className="font-poppins font-black text-5xl text-[#00E5FF] tracking-widest">{room}</p>
+                {roomInfo?.tvPin && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[#6B7280] text-sm">TV PIN:</span>
+                    <span className="bg-[#FF007F] text-white font-black px-3 py-1 rounded-lg text-lg tracking-widest">{roomInfo.tvPin}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-white font-bold text-xl">{players.length}</span>
+              <span className="text-[#6B7280]">player{players.length !== 1 ? 's' : ''} connected</span>
+            </div>
+          </div>
+
+          {/* Right: Live player list */}
+          {players.length > 0 && (
+            <div className="w-64 flex flex-col gap-3">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[#6B7280]">Players in lobby</p>
+              {players.slice(0, 8).map((p: any, i: number) => (
+                <div key={p.uuid}
+                  className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5 border border-white/8"
+                  style={{ animation: `slideInRight 0.4s ease ${i * 0.08}s both` }}>
+                  <div className={`w-2 h-2 rounded-full ${p.isConnected ? 'bg-green-400' : 'bg-[#4B5563]'}`} />
+                  <span className="text-white font-bold">{p.nickname}</span>
+                </div>
+              ))}
+              {players.length > 8 && (
+                <p className="text-[#6B7280] text-sm text-center">+{players.length - 8} more</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* Player count pill */}
-      <div className="flex items-center gap-3 px-6 py-3 bg-white/5 rounded-full border border-white/10">
+      <div className="flex items-center gap-3 px-6 py-3 bg-white/5 rounded-full border border-white/10 z-10">
         <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_#4ade80]" />
         <span className="text-white font-poppins font-bold text-lg">{players.length}</span>
         <span className="text-[#6B7280] text-sm">player{players.length !== 1 ? 's' : ''} in lobby</span>

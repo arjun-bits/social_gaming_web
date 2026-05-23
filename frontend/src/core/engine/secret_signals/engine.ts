@@ -127,7 +127,8 @@ export class SSGameEngine implements GameInterface {
     }
 
     getStateForPlayer(playerId: string): any {
-        const isLeader = this.state.playerIsLeader[playerId] || false;
+        // HOST always sees the full board (leader view) for oversight
+        const isLeader = playerId === 'HOST' || this.state.playerIsLeader[playerId] || false;
         return isLeader ? this.state.toLeaderJson() : this.state.toPublicJson();
     }
 
