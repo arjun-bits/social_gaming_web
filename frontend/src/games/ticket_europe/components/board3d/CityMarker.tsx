@@ -1,14 +1,15 @@
 /**
- * CityMarker.tsx — 3D station building (scaled, varied by region)
- * + Billboard white text label floating above.
+ * CityMarker.tsx — Small 3D station building + iconic custom low-poly landmarks.
+ * Features high-contrast, semi-transparent dark rounded pill badges for city labels.
+ * Geometries are fully optimized using native Three.js primitives.
  */
 import React, { useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { Text, Billboard } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
-import { useFrame } from '@react-three/fiber';
 import type { City } from '../../../../core/engine/ticket_europe/models';
 import { toWorld } from '../EuropeBoard3D';
+import { CITY_ELEVATION } from './TerrainMesh';
 
 const REGION_WALL: Record<string, string> = {
   british: '#c0b090',  nordic:  '#b8a888',  western: '#c8b888',
@@ -32,61 +33,244 @@ const CITY_REGION: Record<string, string> = {
   kyiv: 'russian',     moskva: 'russian',
 };
 
-// Cities that get lighthouses instead of station buildings (skip here)
+// Lighthouse cities — skip standard building (LighthouseMesh renders these)
 const LIGHTHOUSE_CITIES = new Set(['lisbon', 'edinburgh', 'palermo', 'athina', 'stockholm', 'amsterdam']);
 
-// Approximate terrain elevation per city (matches TerrainMesh CITY_ELEVATION * 2.2)
-const CITY_Y: Record<string, number> = {
-  zurich: 1.65, munchen: 1.21, wien: 0.77, frankfurt: 0.35, marseille: 0.66,
-  roma: 0.40, venezia: 0.48, napoli: 0.44, barcelona: 0.77, madrid: 0.92,
-  lisbon: 0.48, palermo: 0.33, sarajevo: 1.06, sofia: 0.77, zagreb: 0.84,
-  budapest: 0.40, bucuresti: 0.26, athina: 0.62, berlin: 0.13, warszawa: 0.11,
-  amsterdam: 0.09, brussels: 0.11, paris: 0.20, london: 0.15, edinburgh: 0.79,
-  stockholm: 0.62, copenhagen: 0.20, kyiv: 0.13, moskva: 0.11,
-};
+// ── CUSTOM ICONIC LANDMARKS (Three.js low-poly primitives) ──
+
+function EiffelTower() {
+  return (
+    <group scale={[0.39, 0.39, 0.39]}>
+      {/* 4 Angled Legs */}
+      {([-0.5, 0.5] as const).map(x =>
+        ([-0.5, 0.5] as const).map(z => (
+          <mesh key={`${x}_${z}`} position={[x, 0.35, z]} rotation={[z * 0.4, 0, -x * 0.4]} castShadow>
+            <boxGeometry args={[0.22, 0.8, 0.22]} />
+            <meshLambertMaterial color="#cca85e" />
+          </mesh>
+        ))
+      )}
+      {/* First Platform */}
+      <mesh position={[0, 0.72, 0]} castShadow>
+        <boxGeometry args={[1.2, 0.12, 1.2]} />
+        <meshLambertMaterial color="#a0854a" />
+      </mesh>
+      {/* Mid Tower */}
+      <mesh position={[0, 1.3, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.44, 1.1, 4]} />
+        <meshLambertMaterial color="#cca85e" flatShading />
+      </mesh>
+      {/* Second Platform */}
+      <mesh position={[0, 1.85, 0]} castShadow>
+        <boxGeometry args={[0.54, 0.08, 0.54]} />
+        <meshLambertMaterial color="#a0854a" />
+      </mesh>
+      {/* Spire */}
+      <mesh position={[0, 2.5, 0]} castShadow>
+        <cylinderGeometry args={[0.02, 0.12, 1.3, 4]} />
+        <meshLambertMaterial color="#dfc58e" flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+function OnionDomeCathedral() {
+  return (
+    <group scale={[0.39, 0.39, 0.39]}>
+      {/* Main Base block */}
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <boxGeometry args={[1.3, 0.6, 1.0]} />
+        <meshLambertMaterial color="#b2443a" flatShading />
+      </mesh>
+      {/* Central main tower */}
+      <mesh position={[0, 0.8, 0]} castShadow>
+        <cylinderGeometry args={[0.22, 0.22, 0.7, 8]} />
+        <meshLambertMaterial color="#dfc28f" />
+      </mesh>
+      {/* Onion Dome - Gold */}
+      <mesh position={[0, 1.25, 0]} castShadow>
+        <sphereGeometry args={[0.28, 8, 8]} />
+        <meshLambertMaterial color="#ffd700" flatShading />
+      </mesh>
+      {/* Spire top */}
+      <mesh position={[0, 1.5, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.2, 4]} />
+        <meshLambertMaterial color="#ffd700" />
+      </mesh>
+      {/* Left/Right side towers */}
+      {([-0.45, 0.45] as const).map((offset, idx) => {
+        const domeColor = idx === 0 ? '#0077ff' : '#08b030';
+        return (
+          <group key={offset} position={[offset, 0, 0.1]}>
+            <mesh position={[0, 0.6, 0]} castShadow>
+              <cylinderGeometry args={[0.16, 0.16, 0.5, 8]} />
+              <meshLambertMaterial color="#e0d0b0" />
+            </mesh>
+            <mesh position={[0, 0.95, 0]} castShadow>
+              <sphereGeometry args={[0.20, 8, 8]} />
+              <meshLambertMaterial color={new THREE.Color(domeColor)} flatShading />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function BigBen() {
+  return (
+    <group scale={[0.39, 0.39, 0.39]}>
+      {/* Sandstone tower shaft */}
+      <mesh position={[0, 0.45, 0]} castShadow>
+        <boxGeometry args={[0.48, 0.9, 0.48]} />
+        <meshLambertMaterial color="#d4c294" flatShading />
+      </mesh>
+      {/* Clock room */}
+      <mesh position={[0, 1.05, 0]} castShadow>
+        <boxGeometry args={[0.54, 0.32, 0.54]} />
+        <meshLambertMaterial color="#c0b080" />
+      </mesh>
+      {/* Clock faces */}
+      {([-0.285, 0.285] as const).map(z => (
+        <mesh key={z} position={[0, 1.05, z]} rotation={[Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.14, 8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+      ))}
+      {([-0.285, 0.285] as const).map(x => (
+        <mesh key={x} position={[x, 1.05, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <circleGeometry args={[0.14, 8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+      ))}
+      {/* Dark Roof cap + spire */}
+      <mesh position={[0, 1.35, 0]} castShadow>
+        <coneGeometry args={[0.34, 0.4, 4]} />
+        <meshLambertMaterial color="#3a4a58" flatShading />
+      </mesh>
+      <mesh position={[0, 1.6, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 0.3, 4]} />
+        <meshLambertMaterial color="#3a4a58" />
+      </mesh>
+    </group>
+  );
+}
+
+function RomanRotunda() {
+  return (
+    <group scale={[0.42, 0.42, 0.42]}>
+      {/* Rotunda base wall */}
+      <mesh position={[0, 0.25, 0]} castShadow>
+        <cylinderGeometry args={[0.62, 0.65, 0.5, 12]} />
+        <meshLambertMaterial color="#dcd6c0" flatShading />
+      </mesh>
+      {/* Colonnade front arch */}
+      <mesh position={[0, 0.25, 0.58]} castShadow>
+        <boxGeometry args={[0.55, 0.46, 0.22]} />
+        <meshLambertMaterial color="#e0dcd0" />
+      </mesh>
+      {/* Terracotta basilica dome */}
+      <mesh position={[0, 0.50, 0]} castShadow>
+        <sphereGeometry args={[0.58, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshLambertMaterial color="#a65230" flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+function GreekTemple() {
+  return (
+    <group scale={[0.42, 0.42, 0.42]}>
+      {/* Pedestal platform */}
+      <mesh position={[0, 0.04, 0]} receiveShadow>
+        <boxGeometry args={[1.3, 0.08, 0.82]} />
+        <meshLambertMaterial color="#dfdcd6" />
+      </mesh>
+      {/* Low-poly cylinders as classical pillars */}
+      {([-0.52, 0.52] as const).map(x =>
+        ([-0.28, 0.28] as const).map(z => (
+          <mesh key={`${x}_${z}`} position={[x, 0.22, z]} castShadow>
+            <cylinderGeometry args={[0.06, 0.06, 0.32, 6]} />
+            <meshLambertMaterial color="#ffffff" />
+          </mesh>
+        ))
+      )}
+      {/* Roof structure architrave */}
+      <mesh position={[0, 0.42, 0]} castShadow>
+        <boxGeometry args={[1.34, 0.08, 0.86]} />
+        <meshLambertMaterial color="#dfdcd6" />
+      </mesh>
+      {/* Classical triangular pediment roof */}
+      <mesh position={[0, 0.53, 0.38]} castShadow>
+        <coneGeometry args={[0.55, 0.16, 4]} />
+        <meshLambertMaterial color="#dfdcd6" flatShading />
+      </mesh>
+    </group>
+  );
+}
+
+function CanalHouses() {
+  return (
+    <group scale={[0.42, 0.42, 0.42]}>
+      {/* Three adjacent gabled narrow canal house rows */}
+      {([-0.36, 0, 0.36] as const).map((xOffset, idx) => {
+        const houses = [
+          { wall: '#aa553a', roof: '#3e4a56', height: 0.85 },
+          { wall: '#8a9c72', roof: '#463c2c', height: 0.95 },
+          { wall: '#cfa264', roof: '#3c3a38', height: 0.78 }
+        ];
+        const h = houses[idx];
+        return (
+          <group key={xOffset} position={[xOffset, 0, 0]}>
+            <mesh position={[0, h.height * 0.5, 0]} castShadow>
+              <boxGeometry args={[0.32, h.height, 0.44]} />
+              <meshLambertMaterial color={new THREE.Color(h.wall)} flatShading />
+            </mesh>
+            <mesh position={[0, h.height + 0.1, 0]} rotation={[0, Math.PI / 2, 0]} castShadow>
+              <coneGeometry args={[0.25, 0.28, 4]} />
+              <meshLambertMaterial color={new THREE.Color(h.roof)} flatShading />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
 
 function StationBuilding({ wallHex, roofHex }: { wallHex: string; roofHex: string }) {
   const wallCol = new THREE.Color(wallHex);
   const roofCol = new THREE.Color(roofHex);
-  const platCol = new THREE.Color('#c0b08a');
-  const winCol  = new THREE.Color('#5878b0');
+  const platCol = new THREE.Color('#c8b888');
 
   return (
-    <group scale={[0.82, 0.82, 0.82]}>
-      {/* Platform */}
-      <mesh position={[0, 0.03, 0]} receiveShadow>
-        <boxGeometry args={[1.1, 0.06, 0.68]} />
-        <meshStandardMaterial color={platCol} roughness={0.88} />
+    <group scale={[0.42, 0.42, 0.42]}>
+      {/* Platform base */}
+      <mesh position={[0, 0.04, 0]} receiveShadow>
+        <boxGeometry args={[1.2, 0.08, 0.72]} />
+        <meshLambertMaterial color={platCol} />
       </mesh>
-      {/* Main hall */}
-      <mesh position={[0, 0.24, 0]} castShadow>
-        <boxGeometry args={[0.66, 0.36, 0.46]} />
-        <meshStandardMaterial color={wallCol} roughness={0.72} />
+      {/* Main hall body */}
+      <mesh position={[0, 0.28, 0]} castShadow>
+        <boxGeometry args={[0.72, 0.40, 0.50]} />
+        <meshLambertMaterial color={wallCol} />
       </mesh>
-      {/* Barrel vault roof */}
-      <mesh position={[0, 0.46, 0]} rotation={[0, Math.PI / 2, 0]} castShadow>
-        <cylinderGeometry args={[0.23, 0.23, 0.68, 10, 1, false, 0, Math.PI]} />
-        <meshStandardMaterial color={roofCol} roughness={0.6} side={THREE.DoubleSide} />
+      {/* Roof — gabled */}
+      <mesh position={[0, 0.50, 0]} rotation={[0, 0, 0]} castShadow>
+        <coneGeometry args={[0.46, 0.28, 4]} />
+        <meshLambertMaterial color={roofCol} />
       </mesh>
-      {/* Wings */}
+      {/* Side wings */}
       {([-1, 1] as const).map(side => (
         <group key={side}>
-          <mesh position={[side * 0.50, 0.14, 0]} castShadow>
-            <boxGeometry args={[0.24, 0.22, 0.42]} />
-            <meshStandardMaterial color={wallCol} roughness={0.72} />
+          <mesh position={[side * 0.54, 0.18, 0]} castShadow>
+            <boxGeometry args={[0.28, 0.24, 0.44]} />
+            <meshLambertMaterial color={wallCol} />
           </mesh>
-          <mesh position={[side * 0.50, 0.27, 0]} rotation={[0, Math.PI / 2, 0]}>
-            <cylinderGeometry args={[0.11, 0.11, 0.26, 6, 1, false, 0, Math.PI]} />
-            <meshStandardMaterial color={roofCol} roughness={0.6} side={THREE.DoubleSide} />
+          <mesh position={[side * 0.54, 0.32, 0]} castShadow>
+            <coneGeometry args={[0.23, 0.18, 4]} />
+            <meshLambertMaterial color={roofCol} />
           </mesh>
         </group>
-      ))}
-      {/* Windows */}
-      {[-0.18, 0, 0.18].map((x, i) => (
-        <mesh key={i} position={[x, 0.25, 0.238]}>
-          <boxGeometry args={[0.09, 0.13, 0.01]} />
-          <meshStandardMaterial color={winCol} roughness={0.1} metalness={0.5} />
-        </mesh>
       ))}
     </group>
   );
@@ -103,16 +287,14 @@ export function CityMarker({ city, interactive, onClick }: Props) {
   const [hovered, setHovered] = useState(false);
 
   const [wx, wz] = toWorld(city.x, city.y);
-  const baseY    = CITY_Y[city.id] ?? 0.20;
+
+  // Dynamic elevation alignment to match the terrain mesh 1.25× height perfectly
+  const rawElev = CITY_ELEVATION[city.id] ?? 0.07;
+  const baseY = rawElev * 1.25;
 
   const regionKey = CITY_REGION[city.id] ?? 'eastern';
   const wallHex   = REGION_WALL[regionKey] ?? '#c8b888';
   const roofHex   = REGION_ROOF[regionKey] ?? '#5a3820';
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    groupRef.current.scale.setScalar(hovered ? 1 + Math.sin(clock.elapsedTime * 8) * 0.04 : 1);
-  });
 
   const handleOver  = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
@@ -127,18 +309,38 @@ export function CityMarker({ city, interactive, onClick }: Props) {
     e.stopPropagation(); if (interactive) onClick(city.id);
   }, [interactive, onClick, city.id]);
 
-  // Skip building for lighthouse cities (they have their own component)
+  // Calculate dynamic rounded black pill badge width based on name length
+  const badgeWidth = city.name.length * 0.16 + 0.35;
+
+  // Render distinctive custom 3D landmark shapes for major cities
+  const renderLandmark = () => {
+    switch (city.id) {
+      case 'paris':     return <EiffelTower />;
+      case 'moskva':    return <OnionDomeCathedral />;
+      case 'london':    return <BigBen />;
+      case 'roma':      return <RomanRotunda />;
+      case 'athina':    return <GreekTemple />;
+      case 'amsterdam': return <CanalHouses />;
+      default:          return <StationBuilding wallHex={wallHex} roofHex={roofHex} />;
+    }
+  };
+
+  // Lighthouse cities (marker handled separately in LighthouseMesh.tsx)
   if (LIGHTHOUSE_CITIES.has(city.id)) {
     return (
       <group position={[wx, baseY, wz]}>
-        <Billboard position={[0, 1.8, 0]}>
+        <Billboard position={[0, 1.2, 0]}>
+          {/* Rounded black pill badge backdrop */}
+          <mesh position={[0, 0.16, -0.02]} receiveShadow={false}>
+            <planeGeometry args={[badgeWidth, 0.44]} />
+            <meshBasicMaterial color="#0b0f19" opacity={0.88} transparent depthWrite={false} />
+          </mesh>
           <Text
-            fontSize={0.52}
-            color="white"
-            outlineColor="#000000"
-            outlineWidth={0.06}
+            fontSize={0.26}
+            color="#ffffff"
             anchorX="center"
-            anchorY="bottom"
+            anchorY="middle"
+            position={[0, 0.16, 0]}
           >
             {city.name.toUpperCase()}
           </Text>
@@ -147,25 +349,32 @@ export function CityMarker({ city, interactive, onClick }: Props) {
     );
   }
 
+  // Calculate suitable elevation offset depending on the height of the landmark
+  const labelY = city.id === 'paris' ? 0.85 : city.id === 'moskva' ? 0.60 : city.id === 'london' ? 0.65 : 0.52;
+
   return (
     <group
       ref={groupRef}
       position={[wx, baseY, wz]}
+      scale={hovered ? [1.10, 1.10, 1.10] : [1, 1, 1]}
       onPointerOver={handleOver}
       onPointerOut={handleOut}
       onClick={handleClick}
     >
-      <StationBuilding wallHex={wallHex} roofHex={roofHex} />
+      {renderLandmark()}
 
-      {/* Floating billboard name — always readable, faces camera */}
-      <Billboard position={[0, 1.2, 0]}>
+      {/* Label Billboards with premium rounded pill badges */}
+      <Billboard position={[0, labelY, 0]}>
+        <mesh position={[0, 0.16, -0.02]} receiveShadow={false}>
+          <planeGeometry args={[badgeWidth, 0.44]} />
+          <meshBasicMaterial color="#0b0f19" opacity={0.88} transparent depthWrite={false} />
+        </mesh>
         <Text
-          fontSize={0.52}
-          color="white"
-          outlineColor="#000000"
-          outlineWidth={0.06}
+          fontSize={0.26}
+          color="#ffffff"
           anchorX="center"
-          anchorY="bottom"
+          anchorY="middle"
+          position={[0, 0.16, 0]}
         >
           {city.name.toUpperCase()}
         </Text>

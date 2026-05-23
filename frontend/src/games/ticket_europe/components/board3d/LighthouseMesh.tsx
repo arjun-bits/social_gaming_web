@@ -19,57 +19,68 @@ const LIGHTHOUSES: Array<[string, number, number, string]> = [
 
 const LAMP_COLOR = new THREE.Color(0xffe080);
 
-function Lighthouse({ wx, wz, colorHex }: { wx: number; wz: number; colorHex: string }) {
+function Lighthouse({ wx, wz, colorHex, baseY }: { wx: number; wz: number; colorHex: string; baseY: number }) {
   const towerColor = new THREE.Color(colorHex);
-  const darkColor  = towerColor.clone().multiplyScalar(0.6);
+  const darkColor  = towerColor.clone().multiplyScalar(0.58);
 
   return (
-    <group position={[wx, 0.04, wz]}>
+    <group position={[wx, baseY, wz]}>
       {/* Base platform */}
       <mesh position={[0, 0.04, 0]}>
-        <cylinderGeometry args={[0.24, 0.26, 0.08, 8]} />
-        <meshStandardMaterial color={darkColor} roughness={0.75} />
+        <cylinderGeometry args={[0.22, 0.25, 0.08, 8]} />
+        <meshLambertMaterial color={darkColor} />
       </mesh>
 
-      {/* Tower body — tapered */}
-      <mesh position={[0, 0.72, 0]} castShadow>
-        <cylinderGeometry args={[0.10, 0.20, 1.28, 8]} />
-        <meshStandardMaterial color={towerColor} roughness={0.65} flatShading />
+      {/* Tower body — tapered, shorter for top-down clarity */}
+      <mesh position={[0, 0.44, 0]} castShadow>
+        <cylinderGeometry args={[0.09, 0.18, 0.72, 8]} />
+        <meshLambertMaterial color={towerColor} flatShading />
       </mesh>
 
-      {/* Stripe band */}
-      <mesh position={[0, 0.60, 0]}>
-        <cylinderGeometry args={[0.155, 0.155, 0.12, 8]} />
-        <meshStandardMaterial color={new THREE.Color(0xf8f4ec)} roughness={0.7} />
+      {/* White stripe band */}
+      <mesh position={[0, 0.36, 0]}>
+        <cylinderGeometry args={[0.145, 0.145, 0.10, 8]} />
+        <meshLambertMaterial color={new THREE.Color(0xf0ece4)} />
       </mesh>
 
-      {/* Lamp room */}
-      <mesh position={[0, 1.42, 0]} castShadow>
-        <cylinderGeometry args={[0.14, 0.14, 0.14, 8]} />
+      {/* Lamp room — emissive yellow */}
+      <mesh position={[0, 0.86, 0]} castShadow>
+        <cylinderGeometry args={[0.12, 0.12, 0.12, 8]} />
         <meshStandardMaterial
           color={LAMP_COLOR}
           emissive={LAMP_COLOR}
-          emissiveIntensity={0.7}
-          roughness={0.2}
-          metalness={0.5}
+          emissiveIntensity={0.90}
+          roughness={0.15}
+          metalness={0.4}
         />
       </mesh>
 
-      {/* Roof cap */}
-      <mesh position={[0, 1.56, 0]}>
-        <coneGeometry args={[0.16, 0.18, 8]} />
-        <meshStandardMaterial color={darkColor} roughness={0.6} />
+      {/* Conical roof */}
+      <mesh position={[0, 0.98, 0]}>
+        <coneGeometry args={[0.14, 0.16, 8]} />
+        <meshLambertMaterial color={darkColor} />
       </mesh>
     </group>
   );
 }
+
+// Coastal city terrain elevations × 0.45 (matching TerrainMesh formula)
+const LIGHTHOUSE_BASE_Y: Record<string, number> = {
+  lisbon:    0.09,
+  edinburgh: 0.14,
+  palermo:   0.06,
+  athina:    0.11,
+  stockholm: 0.10,
+  amsterdam: 0.01,
+};
 
 export function LighthouseMesh() {
   return (
     <group>
       {LIGHTHOUSES.map(([id, mx, my, colorHex]) => {
         const [wx, wz] = toWorld(mx, my);
-        return <Lighthouse key={id} wx={wx} wz={wz} colorHex={colorHex} />;
+        const baseY = LIGHTHOUSE_BASE_Y[id] ?? 0.04;
+        return <Lighthouse key={id} wx={wx} wz={wz} colorHex={colorHex} baseY={baseY} />;
       })}
     </group>
   );

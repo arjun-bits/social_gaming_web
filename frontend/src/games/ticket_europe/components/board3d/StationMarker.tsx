@@ -25,7 +25,7 @@ export function StationMarker({ city, playerColor }: Props) {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
     scaleRef.current = Math.min(1, scaleRef.current + delta * 4);
-    groupRef.current.scale.setScalar(scaleRef.current);
+    groupRef.current.scale.setScalar(scaleRef.current * 1.5);
   });
 
   const color = new THREE.Color(playerColor);

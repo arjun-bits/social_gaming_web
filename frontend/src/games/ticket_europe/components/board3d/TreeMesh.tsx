@@ -1,39 +1,40 @@
 /**
- * TreeMesh.tsx — Dense tall low-poly pine trees in real European forest regions.
- * 1.8× denser, 1.5× taller than previous version.
+ * TreeMesh.tsx — Dense low-poly pine trees clustered cleanly on land.
+ * Integrates Point-in-Polygon checks to ensure trees never spawn in water,
+ * and matches the updated 1.25× terrain mesh elevation height.
  */
 import React, { useMemo } from 'react';
 import { toWorld } from '../EuropeBoard3D';
+import { isLandPoint } from './TerrainMesh';
 
-// [mapX, mapY, count, spread, baseElevMultiplier]
-// baseElevMultiplier * 2.2 gives approximate terrain Y for that region
+// [mapX, mapY, count, spread, baseElev (× 1.25 = terrainY)]
 const FOREST_CLUSTERS: Array<[number, number, number, number, number]> = [
   // Scandinavian boreal (vast)
-  [480, 80, 14, 42, 0.30], [560, 58, 12, 38, 0.32],
-  [640, 88, 10, 34, 0.28], [720, 68, 9,  32, 0.26],
-  [820, 95, 8,  30, 0.22], [380, 98, 11, 36, 0.28],
+  [480, 80, 14, 40, 0.20], [560, 58, 12, 36, 0.20],
+  [640, 88, 10, 32, 0.20], [720, 68, 9,  30, 0.20],
+  [820, 95, 8,  28, 0.16], [380, 98, 11, 34, 0.20],
   // Black Forest / German forests
-  [490, 312, 10, 30, 0.38], [460, 342, 8, 26, 0.34],
-  [470, 280, 6, 22, 0.42],
+  [490, 312, 10, 28, 0.30], [460, 342, 8, 24, 0.20],
+  [470, 280,  6, 20, 0.35],
   // Scottish Highlands
-  [210, 130, 9,  28, 0.40], [232, 158, 7,  22, 0.36],
+  [210, 130,  9, 26, 0.28], [232, 158, 7,  20, 0.24],
   // Carpathian range
-  [632, 330, 10, 28, 0.42], [660, 358, 8,  24, 0.38],
-  [612, 380, 7,  22, 0.35],
+  [632, 330, 10, 26, 0.32], [660, 358, 8,  22, 0.28],
+  [612, 380,  7, 20, 0.24],
   // Balkans
-  [620, 448, 9,  26, 0.36], [592, 470, 7,  22, 0.30],
+  [620, 448,  9, 24, 0.25], [592, 470, 7,  20, 0.18],
   // Pyrenees foothills
-  [290, 375, 9,  26, 0.32], [322, 392, 7,  22, 0.28],
+  [290, 375,  9, 24, 0.24], [322, 392, 7,  20, 0.20],
   // Alps foothills (not on peaks)
-  [448, 310, 6,  20, 0.50], [540, 308, 5,  18, 0.48],
+  [448, 310,  6, 18, 0.40], [540, 308, 5,  16, 0.38],
   // Iberian interior (sparse)
-  [250, 420, 6,  28, 0.28], [285, 462, 5,  24, 0.24],
+  [250, 420,  6, 26, 0.20], [285, 462, 5,  22, 0.18],
   // Apennines (Italy)
-  [512, 470, 7,  22, 0.20], [542, 502, 5,  18, 0.18],
-  // Eastern Poland/Ukraine borderlands
-  [742, 240, 7,  34, 0.06], [798, 278, 5,  28, 0.06],
+  [512, 470,  7, 20, 0.16], [542, 502, 5,  16, 0.14],
+  // Eastern Poland/Ukraine
+  [742, 240,  7, 32, 0.05], [798, 278, 5,  26, 0.05],
   // British Isles interior
-  [205, 265, 6,  22, 0.10], [228, 310, 5,  18, 0.09],
+  [205, 265,  6, 20, 0.10], [228, 310, 5,  16, 0.09],
 ];
 
 function seededRand(seed: number): number {
@@ -41,10 +42,11 @@ function seededRand(seed: number): number {
   return x - Math.floor(x);
 }
 
-const PALETTE = [
-  ['#1a5422', '#226030', '#2a703a', '#30804a'],
-  ['#164c1e', '#1c5826', '#22642e', '#287438'],
-  ['#124018', '#184c20', '#1e5828', '#246430'],
+// Brighter, more saturated greens to resist warm light tinting
+const PALETTES = [
+  ['#2d7a1a', '#388c22', '#3fa025', '#46b02c'],
+  ['#267016', '#30801e', '#389025', '#40a02a'],
+  ['#1e6012', '#28701a', '#30801f', '#389024'],
 ] as const;
 
 interface TreeData {
@@ -60,9 +62,9 @@ export function TreeMesh() {
 
     for (const [cx, cy, count, spread, baseElev] of FOREST_CLUSTERS) {
       const [bx, bz] = toWorld(cx, cy);
-      const spreadW = (spread / 1000) * 20;
-      const spreadH = (spread / 800) * 14;
-      const terrainY = baseElev * 2.2;
+      const spreadW = (spread / 1000) * 22;
+      const spreadH = (spread / 800)  * 16;
+      const terrainY = baseElev * 1.25;   // matches new TerrainMesh 1.25× multiplier
 
       for (let i = 0; i < count; i++) {
         seed++;
@@ -70,11 +72,23 @@ export function TreeMesh() {
         seed++;
         const oz = (seededRand(seed * 5.9) - 0.5) * spreadH * 2;
         seed++;
-        const scale = 0.85 + seededRand(seed * 3.1) * 0.70;   // 0.85–1.55
+        const scale = 0.38 + seededRand(seed * 3.1) * 0.24;   // scale adjusted for R3F
         seed++;
         const pal   = Math.floor(seededRand(seed * 11.7) * 3);
 
-        result.push({ pos: [bx + ox, terrainY, bz + oz], scale, palette: pal });
+        const treeX = bx + ox;
+        const treeZ = bz + oz;
+
+        // Map world coordinate [treeX, treeZ] back to board space for the isLandPoint check
+        // toWorld mapping: X ∈ [-11, +11] (scale 22), Z ∈ [-8, +8] (scale 16)
+        const boardX = ((treeX + 11) / 22) * 1000;
+        const boardY = ((treeZ + 8) / 16) * 800;
+
+        if (!isLandPoint(boardX, boardY)) {
+          continue; // Skip spawning tree in the ocean!
+        }
+
+        result.push({ pos: [treeX, terrainY, treeZ], scale, palette: pal });
       }
     }
     return result;
@@ -83,35 +97,35 @@ export function TreeMesh() {
   return (
     <group>
       {trees.map((t, i) => {
-        const [c1, c2, c3, c4] = PALETTE[t.palette];
+        const [c1, c2, c3, c4] = PALETTES[t.palette];
         const [px, py, pz] = t.pos;
         const s = t.scale;
         return (
           <group key={i} position={[px, py, pz]} scale={[s, s, s]}>
-            {/* Trunk */}
-            <mesh position={[0, 0.14, 0]} castShadow>
-              <cylinderGeometry args={[0.038, 0.055, 0.28, 5]} />
-              <meshStandardMaterial color="#3a2008" roughness={0.95} flatShading />
+            {/* Trunk — dark brown */}
+            <mesh position={[0, 0.12, 0]} castShadow>
+              <cylinderGeometry args={[0.035, 0.055, 0.24, 5]} />
+              <meshLambertMaterial color="#3a2008" />
             </mesh>
-            {/* Layer 1 */}
-            <mesh position={[0, 0.42, 0]} castShadow>
-              <coneGeometry args={[0.27, 0.36, 6]} />
-              <meshStandardMaterial color={c1} roughness={0.85} flatShading />
+            {/* Bottom canopy layer */}
+            <mesh position={[0, 0.36, 0]} castShadow>
+              <coneGeometry args={[0.26, 0.30, 6]} />
+              <meshLambertMaterial color={c1} />
             </mesh>
-            {/* Layer 2 */}
-            <mesh position={[0, 0.62, 0]} castShadow>
-              <coneGeometry args={[0.20, 0.30, 6]} />
-              <meshStandardMaterial color={c2} roughness={0.85} flatShading />
+            {/* Mid layer */}
+            <mesh position={[0, 0.54, 0]} castShadow>
+              <coneGeometry args={[0.19, 0.25, 6]} />
+              <meshLambertMaterial color={c2} />
             </mesh>
-            {/* Layer 3 */}
-            <mesh position={[0, 0.79, 0]} castShadow>
-              <coneGeometry args={[0.13, 0.24, 6]} />
-              <meshStandardMaterial color={c3} roughness={0.85} flatShading />
+            {/* Upper layer */}
+            <mesh position={[0, 0.70, 0]} castShadow>
+              <coneGeometry args={[0.13, 0.22, 6]} />
+              <meshLambertMaterial color={c3} />
             </mesh>
-            {/* Top tip */}
-            <mesh position={[0, 0.94, 0]} castShadow>
-              <coneGeometry args={[0.07, 0.18, 5]} />
-              <meshStandardMaterial color={c4} roughness={0.85} flatShading />
+            {/* Tip */}
+            <mesh position={[0, 0.83, 0]} castShadow>
+              <coneGeometry args={[0.07, 0.16, 5]} />
+              <meshLambertMaterial color={c4} />
             </mesh>
           </group>
         );

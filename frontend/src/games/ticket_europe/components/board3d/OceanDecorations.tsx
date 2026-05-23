@@ -28,45 +28,32 @@ const SAIL2_COLOR  = new THREE.Color(0xe0d5c0);
 
 function Sailboat({ position, rotY }: { position: THREE.Vector3; rotY: number }) {
   return (
-    <group position={position} rotation={[0, rotY, 0]}>
+    // Scale 0.55 — sized for top-down view (was designed for side-on camera)
+    <group position={position} rotation={[0, rotY, 0]} scale={[0.55, 0.55, 0.55]}>
       {/* Hull */}
       <mesh position={[0, 0.04, 0]}>
         <boxGeometry args={[0.55, 0.09, 0.20]} />
-        <meshStandardMaterial color={HULL_COLOR} roughness={0.8} />
-      </mesh>
-      {/* Keel */}
-      <mesh position={[0, -0.02, 0]}>
-        <boxGeometry args={[0.35, 0.06, 0.06]} />
-        <meshStandardMaterial color={new THREE.Color(0x9a7850)} roughness={0.8} />
+        <meshLambertMaterial color={HULL_COLOR} />
       </mesh>
       {/* Mast */}
-      <mesh position={[0.04, 0.36, 0]}>
-        <cylinderGeometry args={[0.015, 0.018, 0.56, 4]} />
-        <meshStandardMaterial color={MAST_COLOR} roughness={0.85} />
+      <mesh position={[0.04, 0.34, 0]}>
+        <cylinderGeometry args={[0.015, 0.018, 0.50, 4]} />
+        <meshLambertMaterial color={MAST_COLOR} />
       </mesh>
       {/* Main sail */}
-      <mesh position={[0.06, 0.45, 0.02]}>
-        <coneGeometry args={[0.20, 0.42, 3]} />
-        <meshStandardMaterial
-          color={SAIL_COLOR}
-          side={THREE.DoubleSide}
-          roughness={0.9}
-          flatShading
-        />
+      <mesh position={[0.06, 0.42, 0.02]}>
+        <coneGeometry args={[0.20, 0.40, 3]} />
+        <meshLambertMaterial color={SAIL_COLOR} side={THREE.DoubleSide} flatShading />
       </mesh>
       {/* Jib */}
-      <mesh position={[-0.10, 0.38, 0]} rotation={[0, 0, 0.3]}>
-        <coneGeometry args={[0.10, 0.28, 3]} />
-        <meshStandardMaterial
-          color={SAIL2_COLOR}
-          side={THREE.DoubleSide}
-          roughness={0.9}
-          flatShading
-        />
+      <mesh position={[-0.10, 0.36, 0]} rotation={[0, 0, 0.3]}>
+        <coneGeometry args={[0.10, 0.26, 3]} />
+        <meshLambertMaterial color={SAIL2_COLOR} side={THREE.DoubleSide} flatShading />
       </mesh>
     </group>
   );
 }
+
 
 export function OceanDecorations() {
   return (
