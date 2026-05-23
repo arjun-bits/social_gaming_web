@@ -2,6 +2,10 @@
 
 A full-stack, real-time multiplayer party gaming platform built for local network play. Host games on a TV or laptop, players join on their phones — no app install needed.
 
+<p align="center">
+  <img src="docs/showcase.png" alt="PartyHub 3D Board Gameplay Showcase" width="600"/>
+</p>
+
 ## Games Included
 
 | Game | Players | Description |
