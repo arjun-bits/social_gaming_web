@@ -183,6 +183,7 @@ export const CITY_ELEVATION: Record<string, number> = {
   amsterdam:  0.03, brussels:  0.04, paris:     0.07, london:     0.06,
   edinburgh:  0.28, stockholm: 0.20, copenhagen:0.07, kyiv:       0.05,
   moskva:     0.04, bruxelles: 0.04,
+  dublin:     0.06, oslo:      0.18, istanbul:  0.05, sevastopol: 0.05,
 };
 
 // ── Dense interior scatter points drives the mountain ranges ──

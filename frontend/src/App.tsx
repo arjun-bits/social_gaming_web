@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { HostView } from './pages/HostView'
 import { PlayerView } from './pages/PlayerView'
 import { LobbyPage } from './pages/LobbyPage'
@@ -56,7 +56,7 @@ function Landing() {
       <div className="w-full max-w-3xl mb-10 animate-slide-up relative" style={{ animationDelay: '60ms' }}>
         <p className="text-[9px] uppercase tracking-[0.35em] text-[#6B7280] text-center mb-4">Available Games</p>
         <div className="flex gap-4 overflow-x-auto pb-4 px-4 snap-x hide-scrollbar mask-edges">
-          {CLIENT_GAME_REGISTRY.map((meta, i) => (
+          {CLIENT_GAME_REGISTRY.map((meta) => (
             <div
               key={meta.gameId}
               className={`snap-center shrink-0 w-56 rounded-3xl p-6 border transition-all relative overflow-hidden flex flex-col items-center text-center

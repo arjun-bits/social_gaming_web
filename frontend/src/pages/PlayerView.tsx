@@ -56,7 +56,7 @@ export function PlayerView() {
         }
       )
       
-      const unsub = p2pClient.onMessage((id, msg) => {
+      const unsub = p2pClient.onMessage((_, msg) => {
         if (msg.type === 'stateUpdate') {
           setGameState(msg.payload)
         }
@@ -199,7 +199,6 @@ export function PlayerView() {
         gameData={game}
         gameMeta={gameMeta}
         onLeave={leaveRoom}
-        playerId={playerId.current}
       />
     )
   }
@@ -239,7 +238,6 @@ export function PlayerView() {
         gameData={game}
         gameMeta={gameMeta}
         onLeave={leaveRoom}
-        playerId={playerId.current}
       />
     )
   }
@@ -249,7 +247,7 @@ export function PlayerView() {
     <>
       {isLeader
         ? <SpymasterView game={game} myTeam={myTeam} />
-        : <OperativeView game={game} myTeam={myTeam} playerId={playerId.current} />
+        : <OperativeView game={game} myTeam={myTeam} />
       }
     </>
   )
@@ -258,9 +256,9 @@ export function PlayerView() {
 /* ──────────────────────────────────────────── */
 /* ROLE SELECTION (Lobby)                       */
 /* ──────────────────────────────────────────── */
-function RoleSelection({ myTeam, isLeader, gameExists, roomData, gameData, gameMeta, onLeave, playerId }: {
+function RoleSelection({ myTeam, isLeader, gameExists, roomData, gameData, gameMeta, onLeave }: {
   myTeam?: string; isLeader: boolean; gameExists: boolean; roomData: any; gameData: any;
-  gameMeta?: any; onLeave?: () => void; playerId?: string;
+  gameMeta?: any; onLeave?: () => void;
 }) {
   const roles = [
     { label: 'Spymaster', team: 'teamA', leader: true, color: '#00E5FF', emoji: '🔵' },
@@ -534,7 +532,7 @@ function SpymasterView({ game, myTeam }: { game: any; myTeam: string }) {
 /* ──────────────────────────────────────────── */
 /* OPERATIVE VIEW                               */
 /* ──────────────────────────────────────────── */
-function OperativeView({ game, myTeam, playerId }: { game: any; myTeam: string; playerId: string }) {
+function OperativeView({ game, myTeam }: { game: any; myTeam: string }) {
   const [pendingCard, setPendingCard] = useState<{ index: number; word: string } | null>(null)
   const [showEndTurnConfirm, setShowEndTurnConfirm] = useState(false)
   const isMyTurn = game.currentTurn === myTeam

@@ -21,11 +21,11 @@ import { cities, initialRoutes } from '../../../core/engine/ticket_europe/boardD
 import { RiverMesh } from './board3d/RiverMesh';
 
 // ── Coordinate mapping ──────────────────────────────────────────────────
-// boardData: x ∈ [0,1000], y ∈ [0,800]  →  3D: X ∈ [-14,+14], Z ∈ [-10,+10]
+// boardData: x ∈ [0,1000], y ∈ [0,800]  →  3D: X ∈ [-18,+18], Z ∈ [-13,+13] (Expanded by 1.3x)
 export function toWorld(x: number, y: number): [number, number] {
   return [
-    (x / 1000) * 28 - 14,
-    (y / 800) * 20 - 10,
+    (x / 1000) * 36 - 18,
+    (y / 800) * 26 - 13,
   ];
 }
 
@@ -43,10 +43,10 @@ function CameraLimiter() {
       const target = (controls as any).target;
       if (target) {
         // Clamp OrbitControls target so user cannot pan off the board
-        if (target.x < -14) target.x = -14;
-        if (target.x > 14) target.x = 14;
-        if (target.z < -10) target.z = -10;
-        if (target.z > 10) target.z = 10;
+        if (target.x < -18) target.x = -18;
+        if (target.x > 18) target.x = 18;
+        if (target.z < -13) target.z = -13;
+        if (target.z > 13) target.z = 13;
       }
     }
   });
@@ -88,7 +88,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
         <OrthographicCamera
           makeDefault
           position={[18, 22, 22]}
-          zoom={42}
+          zoom={36} // Adjusted from 42 for expanded board overview
           near={0.1}
           far={500}
         />
@@ -136,8 +136,8 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
           enableZoom={true}
           panSpeed={1.2}
           zoomSpeed={0.8}
-          minZoom={18}
-          maxZoom={120}
+          minZoom={14} // Adjusted from 18
+          maxZoom={150} // Adjusted from 120
           screenSpacePanning={true}
           target={[0, 0, -1]}
           makeDefault
@@ -187,38 +187,38 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
             })}
           </group>
 
-          {/* ── Premium High-Definition Board Game Tray & Frames (Enlarged to 32x24) ── */}
+          {/* ── Premium High-Definition Board Game Tray & Frames (Enlarged to 44x34 for expanded active board area) ── */}
           {/* Thick Dark Mahogany Base - Lowered so ocean sits above it */}
           <mesh position={[0, -0.25, 0]} receiveShadow castShadow>
-            <boxGeometry args={[36, 0.16, 28]} />
+            <boxGeometry args={[44, 0.16, 34]} />
             <meshStandardMaterial color="#140a04" roughness={0.76} metalness={0.15} />
           </mesh>
 
           {/* Satin Polished Mahogany Wooden Borders framing the active board area */}
           {/* Top Border */}
-          <mesh position={[0, -0.01, -14.0]} receiveShadow castShadow>
-            <boxGeometry args={[36.4, 0.12, 0.4]} />
+          <mesh position={[0, -0.01, -17.0]} receiveShadow castShadow>
+            <boxGeometry args={[44.4, 0.12, 0.4]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Bottom Border */}
-          <mesh position={[0, -0.01, 14.0]} receiveShadow castShadow>
-            <boxGeometry args={[36.4, 0.12, 0.4]} />
+          <mesh position={[0, -0.01, 17.0]} receiveShadow castShadow>
+            <boxGeometry args={[44.4, 0.12, 0.4]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Left Border */}
-          <mesh position={[-18.0, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 28]} />
+          <mesh position={[-22.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.4, 0.12, 34]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Right Border */}
-          <mesh position={[18.0, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 28]} />
+          <mesh position={[22.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.4, 0.12, 34]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
 
           {/* Polished Brass Corner Braces for deluxe tabletop board game styling */}
           {/* Top-Left Corner Brace */}
-          <group position={[-17.7, 0.051, -13.7]}>
+          <group position={[-21.7, 0.051, -16.7]}>
             <mesh castShadow>
               <boxGeometry args={[0.6, 0.02, 0.12]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
@@ -229,7 +229,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
             </mesh>
           </group>
           {/* Top-Right Corner Brace */}
-          <group position={[17.7, 0.051, -13.7]}>
+          <group position={[21.7, 0.051, -16.7]}>
             <mesh castShadow>
               <boxGeometry args={[0.6, 0.02, 0.12]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
@@ -240,7 +240,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
             </mesh>
           </group>
           {/* Bottom-Left Corner Brace */}
-          <group position={[-17.7, 0.051, 13.7]}>
+          <group position={[-21.7, 0.051, 16.7]}>
             <mesh castShadow>
               <boxGeometry args={[0.6, 0.02, 0.12]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
@@ -251,7 +251,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
             </mesh>
           </group>
           {/* Bottom-Right Corner Brace */}
-          <group position={[17.7, 0.051, 13.7]}>
+          <group position={[21.7, 0.051, 16.7]}>
             <mesh castShadow>
               <boxGeometry args={[0.6, 0.02, 0.12]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />

@@ -1,14 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
-import { Monitor, Play, Settings, Users, ArrowRight, Gamepad2, Info } from 'lucide-react'
 import { wsClient } from '../lib/wsClient'
 import { hostController } from '../lib/hostController'
-import { CLIENT_GAME_REGISTRY, getClientGameMeta } from '../games/gameRegistry'
+import { CLIENT_GAME_REGISTRY } from '../games/gameRegistry'
 import { CastModal } from '../components/CastModal'
 import { SecretSignalsLobby } from '../games/secret_signals/SecretSignalsLobby'
 import { TTRELobby } from '../games/ticket_europe/TTRELobby'
-import type { GameClientMeta } from '../games/gameRegistry'
 
 export function LobbyPage() {
   const { room } = useParams<{ room: string }>()
@@ -315,7 +313,7 @@ export function LobbyPage() {
 
               {/* Other Games List */}
               <div className="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar">
-                {CLIENT_GAME_REGISTRY.map((meta, i) => (
+                {CLIENT_GAME_REGISTRY.map((meta) => (
                   <div
                     key={meta.gameId}
                     onClick={() => !meta.comingSoon && handleSelectGame(meta.gameId)}
@@ -369,7 +367,6 @@ export function LobbyPage() {
                 players={players}
                 playerTeams={game?.playerTeams || {}}
                 playerIsLeader={game?.playerIsLeader || {}}
-                onAutoAssign={handleAutoAssign}
               />
             )}
             {selectedGameId === 'ticket_europe' && (
@@ -417,61 +414,9 @@ export function LobbyPage() {
         </div>
       </main>
 
-      {/* ── Cast Modal ── */}
       {showCastModal && (
-        <CastModal roomCode={room} onClose={() => setShowCastModal(false)} />
+        <CastModal roomCode={room || ''} onClose={() => setShowCastModal(false)} />
       )}
-    </div>
-  )
-}
-
-/* ── Game Card Component ── */
-function GameCard({ meta, selected, onSelect, style }: {
-  meta: GameClientMeta
-  selected: boolean
-  onSelect: () => void
-  style?: React.CSSProperties
-}) {
-  return (
-    <div
-      className={`game-card animate-slide-up ${selected ? 'selected' : ''} ${meta.comingSoon ? 'coming-soon' : ''}`}
-      style={style}
-      onClick={onSelect}
-      role="button"
-      aria-pressed={selected}
-      id={`game-card-${meta.gameId}`}
-    >
-      {meta.comingSoon && (
-        <div className="absolute top-3 right-3 px-2 py-0.5 bg-white/10 rounded-full text-[9px] uppercase tracking-widest text-[#6B7280] font-bold">
-          Soon
-        </div>
-      )}
-      {selected && (
-        <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#00E5FF] flex items-center justify-center">
-          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-            <path d="M1 4L3.5 6.5L9 1" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      )}
-
-      <div className="text-4xl mb-3">{meta.icon}</div>
-      <h3 className="font-poppins font-black text-lg text-white mb-1">{meta.displayName}</h3>
-      <p className="text-[#6B7280] text-xs leading-relaxed mb-3">{meta.description}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {meta.tags.map(tag => (
-          <span
-            key={tag}
-            className="px-2 py-0.5 rounded-full text-[9px] uppercase tracking-wider font-bold"
-            style={{
-              background: selected ? `${meta.accentColor}22` : 'rgba(255,255,255,0.06)',
-              color: selected ? meta.accentColor : '#6B7280',
-              border: `1px solid ${selected ? meta.accentColor + '44' : 'rgba(255,255,255,0.08)'}`,
-            }}
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
     </div>
   )
 }

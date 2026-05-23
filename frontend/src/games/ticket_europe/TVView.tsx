@@ -1,4 +1,3 @@
-import React from 'react';
 import { EuropeBoard3D } from './components/EuropeBoard3D';
 import type { TTREStateData } from '../../core/engine/ticket_europe/models';
 

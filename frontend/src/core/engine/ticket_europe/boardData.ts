@@ -1,5 +1,5 @@
 import { RouteType, TrainColor } from './models';
-import type { City, Route } from './models';
+import type { City, Route, Ticket } from './models';
 
 export const cities: Record<string, City> = {
     'london': { id: 'london', name: 'London', x: 160, y: 210 },
@@ -30,14 +30,20 @@ export const cities: Record<string, City> = {
     'warszawa': { id: 'warszawa', name: 'Warszawa', x: 670, y: 190 },
     'moskva': { id: 'moskva', name: 'Moskva', x: 970, y: 70 },
     'stockholm': { id: 'stockholm', name: 'Stockholm', x: 580, y: 30 },
-    'copenhagen': { id: 'copenhagen', name: 'København', x: 460, y: 90 }
+    'copenhagen': { id: 'copenhagen', name: 'København', x: 460, y: 90 },
+    
+    // New cities added for visual detail, island connections, and deeper route maps
+    'dublin': { id: 'dublin', name: 'Dublin', x: 80, y: 160 },
+    'oslo': { id: 'oslo', name: 'Oslo', x: 430, y: 60 },
+    'istanbul': { id: 'istanbul', name: 'Istanbul', x: 770, y: 620 },
+    'sevastopol': { id: 'sevastopol', name: 'Sevastopol', x: 900, y: 480 }
 };
 
 export const initialRoutes: Route[] = [
     { id: 'lon-edi-1', from: 'london', to: 'edinburgh', color: TrainColor.black, length: 4, type: RouteType.normal },
     { id: 'lon-edi-2', from: 'london', to: 'edinburgh', color: TrainColor.orange, length: 4, type: RouteType.normal },
     { id: 'lon-ams', from: 'london', to: 'amsterdam', color: TrainColor.any, length: 2, type: RouteType.ferry, locomotivesRequired: 2 },
-    { id: 'lon-die', from: 'london', to: 'paris', color: TrainColor.any, length: 2, type: RouteType.ferry, locomotivesRequired: 1 }, // simplified London to Paris ferry
+    { id: 'lon-die', from: 'london', to: 'paris', color: TrainColor.any, length: 2, type: RouteType.ferry, locomotivesRequired: 1 },
     { id: 'par-bru-1', from: 'paris', to: 'brussels', color: TrainColor.yellow, length: 2, type: RouteType.normal },
     { id: 'par-bru-2', from: 'paris', to: 'brussels', color: TrainColor.red, length: 2, type: RouteType.normal },
     { id: 'par-mad', from: 'paris', to: 'madrid', color: TrainColor.any, length: 4, type: RouteType.normal },
@@ -83,5 +89,48 @@ export const initialRoutes: Route[] = [
     { id: 'sto-war', from: 'stockholm', to: 'warszawa', color: TrainColor.any, length: 4, type: RouteType.ferry, locomotivesRequired: 1 },
     { id: 'war-kyi', from: 'warszawa', to: 'kyiv', color: TrainColor.any, length: 4, type: RouteType.normal },
     { id: 'war-mos', from: 'warszawa', to: 'moskva', color: TrainColor.any, length: 6, type: RouteType.normal },
-    { id: 'kyi-mos', from: 'kyiv', to: 'moskva', color: TrainColor.any, length: 4, type: RouteType.normal }
+    { id: 'kyi-mos', from: 'kyiv', to: 'moskva', color: TrainColor.any, length: 4, type: RouteType.normal },
+
+    // New island / ferry and overland routes for the expanded board
+    { id: 'dub-lon', from: 'dublin', to: 'london', color: TrainColor.any, length: 3, type: RouteType.ferry, locomotivesRequired: 1 },
+    { id: 'edi-osl', from: 'edinburgh', to: 'oslo', color: TrainColor.any, length: 4, type: RouteType.ferry, locomotivesRequired: 1 },
+    { id: 'osl-sto', from: 'oslo', to: 'stockholm', color: TrainColor.any, length: 3, type: RouteType.normal },
+    { id: 'osl-cop', from: 'oslo', to: 'copenhagen', color: TrainColor.any, length: 2, type: RouteType.ferry, locomotivesRequired: 1 },
+    { id: 'ist-sof', from: 'istanbul', to: 'sofia', color: TrainColor.any, length: 2, type: RouteType.normal },
+    { id: 'ist-ath', from: 'istanbul', to: 'athina', color: TrainColor.any, length: 2, type: RouteType.ferry, locomotivesRequired: 1 },
+    { id: 'sev-buc', from: 'sevastopol', to: 'bucuresti', color: TrainColor.any, length: 4, type: RouteType.normal },
+    { id: 'sev-kyi', from: 'sevastopol', to: 'kyiv', color: TrainColor.any, length: 4, type: RouteType.normal }
+];
+
+export const initialTickets: Ticket[] = [
+    { id: 't1', from: 'london', to: 'moskva', points: 20 },
+    { id: 't2', from: 'paris', to: 'athina', points: 12 },
+    { id: 't3', from: 'edinburgh', to: 'wien', points: 11 },
+    { id: 't4', from: 'lisbon', to: 'warszawa', points: 18 },
+    { id: 't5', from: 'madrid', to: 'kyiv', points: 17 },
+    { id: 't6', from: 'dublin', to: 'berlin', points: 13 },
+    { id: 't7', from: 'oslo', to: 'roma', points: 15 },
+    { id: 't8', from: 'palermo', to: 'stockholm', points: 18 },
+    { id: 't9', from: 'marseille', to: 'istanbul', points: 16 },
+    { id: 't10', from: 'london', to: 'sevastopol', points: 17 },
+    { id: 't11', from: 'amsterdam', to: 'athina', points: 12 },
+    { id: 't12', from: 'berlin', to: 'bucuresti', points: 8 },
+    { id: 't13', from: 'brussels', to: 'warszawa', points: 7 },
+    { id: 't14', from: 'copenhagen', to: 'sarajevo', points: 10 },
+    { id: 't15', from: 'frankfurt', to: 'roma', points: 8 },
+    { id: 't16', from: 'kyiv', to: 'venezia', points: 9 },
+    { id: 't17', from: 'madrid', to: 'marseille', points: 5 },
+    { id: 't18', from: 'munchen', to: 'budapest', points: 5 },
+    { id: 't19', from: 'napoli', to: 'frankfurt', points: 7 },
+    { id: 't20', from: 'paris', to: 'zagreb', points: 7 },
+    { id: 't21', from: 'roma', to: 'sofia', points: 6 },
+    { id: 't22', from: 'warszawa', to: 'budapest', points: 5 },
+    { id: 't23', from: 'wien', to: 'sarajevo', points: 4 },
+    { id: 't24', from: 'zurich', to: 'copenhagen', points: 6 },
+    { id: 't25', from: 'barcelona', to: 'brussels', points: 8 },
+    { id: 't26', from: 'edinburgh', to: 'paris', points: 7 },
+    { id: 't27', from: 'lisbon', to: 'barcelona', points: 5 },
+    { id: 't28', from: 'oslo', to: 'stockholm', points: 4 },
+    { id: 't29', from: 'istanbul', to: 'athina', points: 5 },
+    { id: 't30', from: 'sevastopol', to: 'moskva', points: 6 }
 ];

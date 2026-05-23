@@ -27,7 +27,7 @@ export function TVPage() {
       })
     }
 
-    const unsubP2P = p2pClient.onMessage((id, msg) => {
+    const unsubP2P = p2pClient.onMessage((_, msg) => {
       if (msg.type === 'stateUpdate') {
          setGameState(msg.payload)
       }

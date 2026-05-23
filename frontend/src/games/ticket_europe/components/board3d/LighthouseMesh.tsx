@@ -3,13 +3,10 @@ import { toWorld } from '../EuropeBoard3D';
 import { getTerrainHeight } from './TerrainMesh';
 
 // [cityId, mapX, mapY, towerColor]
+// Kept only Lisbon and Palermo, synchronizing coordinates with boardData.ts
 const LIGHTHOUSES: Array<[string, number, number, string]> = [
-  ['lisbon',    285, 560,  '#d4702a'],   // Atlantic tower
-  ['edinburgh', 222, 148,  '#b86828'],   // North Sea tower
-  ['palermo',   360, 680,  '#d46828'],   // Mediterranean
-  ['athina',    668, 628,  '#c86030'],   // Aegean coast
-  ['stockholm', 662, 118,  '#b87840'],   // Baltic
-  ['amsterdam', 448, 200,  '#b09050'],   // North Sea flat coast
+  ['lisbon',    40, 680,  '#d4702a'],   // Atlantic tower
+  ['palermo',   480, 780,  '#d46828'],   // Mediterranean
 ];
 
 const LAMP_COLOR = new THREE.Color(0xffe080);

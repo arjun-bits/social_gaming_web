@@ -1,35 +1,31 @@
-export enum GamePhase {
-    lobby = 'lobby',
-    setup = 'setup',
-    playing = 'playing',
-    game_over = 'game_over'
-}
+export const GamePhase = {
+    lobby: 'lobby',
+    setup: 'setup',
+    playing: 'playing',
+    game_over: 'game_over'
+} as const;
+export type GamePhase = typeof GamePhase[keyof typeof GamePhase];
 
-export enum TrainColor {
-    red = 'red',
-    blue = 'blue',
-    green = 'green',
-    yellow = 'yellow',
-    black = 'black',
-    white = 'white',
-    orange = 'orange',
-    pink = 'pink',
-    locomotive = 'locomotive', // wild
-    any = 'any' // used for gray routes
-}
+export const TrainColor = {
+    red: 'red',
+    blue: 'blue',
+    green: 'green',
+    yellow: 'yellow',
+    black: 'black',
+    white: 'white',
+    orange: 'orange',
+    pink: 'pink',
+    locomotive: 'locomotive', // wild
+    any: 'any' // used for gray routes
+} as const;
+export type TrainColor = typeof TrainColor[keyof typeof TrainColor];
 
-export interface City {
-    id: string;
-    name: string;
-    x: number;
-    y: number;
-}
-
-export enum RouteType {
-    normal = 'normal',
-    ferry = 'ferry',
-    tunnel = 'tunnel'
-}
+export const RouteType = {
+    normal: 'normal',
+    ferry: 'ferry',
+    tunnel: 'tunnel'
+} as const;
+export type RouteType = typeof RouteType[keyof typeof RouteType];
 
 export interface City {
     id: string;
@@ -66,6 +62,7 @@ export interface PlayerState {
     score: number;
     trainCards: Record<TrainColor, number>;
     tickets: Ticket[];
+    pendingTickets?: Ticket[]; // Destination tickets currently awaiting keep/discard choice
     stationsBuilt: string[]; // city ids
 }
 
@@ -77,6 +74,7 @@ export interface TTREStateData {
     openCards: TrainColor[];
     deckCount: number;
     ticketDeckCount: number;
+    ticketDeck?: Ticket[]; // The deck of destination tickets
     routes: Route[];
     logs: string[];
     longestPathWinner?: string;

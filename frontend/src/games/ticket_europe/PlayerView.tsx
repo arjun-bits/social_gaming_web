@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { EuropeBoard3D } from './components/EuropeBoard3D';
 import type { TTREStateData } from '../../core/engine/ticket_europe/models';
 import { initialRoutes } from '../../core/engine/ticket_europe/boardData';

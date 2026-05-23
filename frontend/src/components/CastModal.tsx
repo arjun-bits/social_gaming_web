@@ -1,4 +1,3 @@
-import React from 'react'
 import { ExternalLink, Link as LinkIcon, Tv } from 'lucide-react'
 
 interface CastModalProps {

@@ -1,17 +1,12 @@
-import React from 'react'
-
-export function SecretSignalsLobby({ players, playerTeams, playerIsLeader, onAutoAssign }: {
+export function SecretSignalsLobby({ players, playerTeams, playerIsLeader }: {
     players: any[],
     playerTeams: Record<string, string>,
-    playerIsLeader: Record<string, boolean>,
-    onAutoAssign: () => void
+    playerIsLeader: Record<string, boolean>
 }) {
     // Categorize players
     const unassigned = players.filter(p => !playerTeams[p.id])
     const teamA = players.filter(p => playerTeams[p.id] === 'teamA')
     const teamB = players.filter(p => playerTeams[p.id] === 'teamB')
-
-    const getRoleStr = (p: any) => playerIsLeader[p.id] ? 'Spymaster' : 'Operative'
 
     return (
         <div className="flex flex-col gap-6 animate-slide-up">

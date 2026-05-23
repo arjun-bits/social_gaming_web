@@ -1,21 +1,24 @@
-export enum CardTeam {
-    teamA = 'teamA',
-    teamB = 'teamB',
-    neutral = 'neutral',
-    assassin = 'assassin',
-}
+export const CardTeam = {
+    teamA: 'teamA',
+    teamB: 'teamB',
+    neutral: 'neutral',
+    assassin: 'assassin',
+} as const;
+export type CardTeam = typeof CardTeam[keyof typeof CardTeam];
 
-export enum GamePhase {
-    lobby = 'lobby',
-    teamSetup = 'teamSetup',
-    playing = 'playing',
-    gameOver = 'gameOver',
-}
+export const GamePhase = {
+    lobby: 'lobby',
+    teamSetup: 'teamSetup',
+    playing: 'playing',
+    gameOver: 'gameOver',
+} as const;
+export type GamePhase = typeof GamePhase[keyof typeof GamePhase];
 
-export enum TurnPhase {
-    givingClue = 'givingClue',
-    guessing = 'guessing',
-}
+export const TurnPhase = {
+    givingClue: 'givingClue',
+    guessing: 'guessing',
+} as const;
+export type TurnPhase = typeof TurnPhase[keyof typeof TurnPhase];
 
 export class WordCard {
     word: string;
