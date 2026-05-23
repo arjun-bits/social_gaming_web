@@ -75,14 +75,24 @@ export const POLYGON_IRELAND: Array<[number, number]> = [
 ];
 
 export const POLYGON_SCANDINAVIA: Array<[number, number]> = [
-  [440, 10],  // Northwest Norway
-  [520, 10],  // Northern Sweden
-  [610, 20],  // Northeast Sweden
-  [630, 80],  // Stockholm/Uppsala Baltic Coast
+  [420, 5],   // Northwest Norway
+  [530, 5],   // Northern Sweden
+  [620, 10],  // Northeast Sweden
+  [640, 50],  // Stockholm/Uppsala Baltic Coast
+  [630, 90],  // Southeast Sweden
   [590, 150], // Southern Sweden (Skåne)
   [530, 150], // Swedish West Coast (Gothenburg)
-  [460, 90],  // Southern Norway (Oslofjord)
-  [410, 80]   // Southwest Norway (Bergen/Stavanger)
+  [460, 100], // Southern Norway (Oslofjord)
+  [400, 70]   // Southwest Norway (Bergen/Stavanger)
+];
+
+export const POLYGON_JUTLAND: Array<[number, number]> = [
+  [420, 90],  // Northern Jutland
+  [470, 80],  // Northeast
+  [480, 110], // East coast
+  [470, 150], // Southeast
+  [440, 160], // Southern Jutland
+  [410, 130], // West coast
 ];
 
 export const POLYGON_SICILY: Array<[number, number]> = [
@@ -128,6 +138,7 @@ export function isLandPoint(x: number, y: number): boolean {
          isPointInPolygon(p, POLYGON_BRITAIN) ||
          isPointInPolygon(p, POLYGON_IRELAND) ||
          isPointInPolygon(p, POLYGON_SCANDINAVIA) ||
+         isPointInPolygon(p, POLYGON_JUTLAND) ||
          isPointInPolygon(p, POLYGON_SICILY) ||
          isPointInPolygon(p, POLYGON_SARDINIA_CORSICA) ||
          isPointInPolygon(p, POLYGON_BALEARIC) ||
@@ -139,24 +150,27 @@ export function isLandPoint(x: number, y: number): boolean {
 function getVertexColor(elevation: number, isCoast: boolean): THREE.Color {
   // Seamless Beach Rule: Sand is only colored on very low elevation coastline vertices
   if (isCoast && elevation < 0.035) {
-    return new THREE.Color('#dcd0b4'); // Elegant, thin, seamless warm sandy beach
+    return new THREE.Color('#d4c494'); // Warm golden sand
   }
-  if (elevation < 0.16) {
-    return new THREE.Color('#58963c'); // Lowland lush grass green
+  if (elevation < 0.10) {
+    return new THREE.Color('#5ca53e'); // Lush lowland green
   }
-  if (elevation < 0.35) {
-    return new THREE.Color('#3d7a22'); // Warmer plains / forest green
+  if (elevation < 0.22) {
+    return new THREE.Color('#4a9630'); // Rich grass green
+  }
+  if (elevation < 0.38) {
+    return new THREE.Color('#3b8224'); // Deep forest green
   }
   if (elevation < 0.52) {
-    return new THREE.Color('#5a7c36'); // Highlands / olive green
+    return new THREE.Color('#4d7030'); // Olive highland
   }
-  if (elevation < 0.68) {
-    return new THREE.Color('#8c7b65'); // Foothills / rocky grey-brown
+  if (elevation < 0.65) {
+    return new THREE.Color('#7a6c58'); // Foothill brown-grey
   }
-  if (elevation < 0.80) {
-    return new THREE.Color('#99958e'); // Alpine stone grey
+  if (elevation < 0.78) {
+    return new THREE.Color('#908882'); // Alpine stone grey
   }
-  return new THREE.Color('#ffffff'); // High summits snowy peaks white!
+  return new THREE.Color('#f0ede8'); // Snow peak warm-white
 }
 
 // ── City elevations ──
@@ -273,9 +287,9 @@ export function TerrainMesh() {
     }
     
     // 2. Add procedural dense grid points over the entire active board area
-    // Dense 18-unit step grid covers everything with thousands of small, beautiful low-poly facets!
-    for (let x = 10; x < 1000; x += 13) {
-      for (let y = 10; y < 800; y += 13) {
+    // Dense 9-unit step grid covers everything with many more beautiful low-poly facets!
+    for (let x = 5; x < 1000; x += 9) {
+      for (let y = 5; y < 800; y += 9) {
         if (isLandPoint(x, y)) {
           // Check if it's too close to a city
           let tooClose = false;
@@ -314,6 +328,7 @@ export function TerrainMesh() {
       POLYGON_BRITAIN,
       POLYGON_IRELAND,
       POLYGON_SCANDINAVIA,
+      POLYGON_JUTLAND,
       POLYGON_SICILY,
       POLYGON_SARDINIA_CORSICA,
       POLYGON_BALEARIC,
@@ -321,8 +336,20 @@ export function TerrainMesh() {
       POLYGON_CYPRUS
     ];
     for (const poly of ALL_POLYGONS) {
-      for (const [px, py] of poly) {
+      for (let i = 0; i < poly.length; i++) {
+        const [px, py] = poly[i];
+        const [nx, ny] = poly[(i + 1) % poly.length];
+        // Add the vertex itself
         points.push([px, py, 0.01, true]);
+        // Subdivide each edge into 3 segments for smoother coastlines
+        for (let t = 1; t <= 2; t++) {
+          const frac = t / 3;
+          const ix = px + (nx - px) * frac;
+          const iy = py + (ny - py) * frac;
+          if (isLandPoint(ix, iy)) {
+            points.push([ix, iy, 0.01, true]);
+          }
+        }
       }
     }
 
@@ -386,7 +413,7 @@ export function TerrainMesh() {
 
     // 4. Generate Skirt side walls
     const skirtPositions: number[] = [];
-    const skirtBaseY = -0.16;
+    const skirtBaseY = -0.20;
 
     for (const poly of ALL_POLYGONS) {
       const len = poly.length;
@@ -431,9 +458,9 @@ export function TerrainMesh() {
         <meshStandardMaterial vertexColors flatShading roughness={0.76} metalness={0.08} />
       </mesh>
       
-      {/* Landmass 3D side walls (skirts) - Dark Walnut wood finish */}
+      {/* Landmass 3D side walls (beach cliffs) - Sandy cliff face */}
       <mesh geometry={skirtGeometry} receiveShadow castShadow>
-        <meshStandardMaterial color="#2d1c10" flatShading roughness={0.82} metalness={0.05} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#a08860" flatShading roughness={0.82} metalness={0.05} side={THREE.DoubleSide} />
       </mesh>
     </group>
   );

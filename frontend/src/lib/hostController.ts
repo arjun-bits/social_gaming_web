@@ -112,8 +112,8 @@ class HostController {
 
     public startGame() {
         if (this.game) {
-            // Exclude HOST — only real players should be assigned game roles
-            const activePlayers = this.players.filter(p => p.isConnected && p.id !== 'HOST');
+            // Include all connected players (including HOST for games that support it)
+            const activePlayers = this.players.filter(p => p.isConnected);
             const activePlayerIds = activePlayers.map(p => p.id);
             // Build name map so engines can use real nicknames (especially TTRE)
             const nameMap: Record<string, string> = {};

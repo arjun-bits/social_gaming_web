@@ -110,7 +110,7 @@ export class TTREGameEngine implements GameInterface {
 
     private startGame() {
         this.state.data.phase = GamePhase.playing;
-        this.state.data.playerOrder = Object.keys(this.state.data.players).filter(id => id !== 'HOST');
+        this.state.data.playerOrder = Object.keys(this.state.data.players);
         this.state.data.currentPlayerIndex = 0;
 
         // Initialize players
@@ -218,7 +218,7 @@ export class TTREGameEngine implements GameInterface {
     }
 
     addPlayer(playerId: string, name: string): void {
-        if (!this.state.data.players[playerId] && playerId !== 'HOST') {
+        if (!this.state.data.players[playerId]) {
             this.state.data.players[playerId] = {
                 id: playerId,
                 name,

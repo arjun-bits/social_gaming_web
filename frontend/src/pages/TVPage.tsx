@@ -53,9 +53,9 @@ export function TVPage() {
     : window.location.host
   const joinUrl = `${window.location.protocol}//${effectiveHost}/play?room=${room}&pin=${roomInfo?.tvPin || ''}`
 
-  const isLobby = !game || game.phase === 'lobby' || game.phase === 'teamSetup'
-  const isGameOver = game?.phase === 'gameOver'
-  const isPlaying = game?.phase === 'playing'
+  const isLobby = !game || game.phase === 'lobby' || game.phase === 'teamSetup' || game?.data?.phase === 'lobby'
+  const isGameOver = game?.phase === 'gameOver' || game?.data?.phase === 'game_over'
+  const isPlaying = game?.phase === 'playing' || game?.data?.phase === 'playing'
 
   const clueKey = game?.currentClue ? `${game.currentClue.word}-${game.currentClue.count}` : ''
   const clueIsNew = clueKey && clueKey !== prevClueKey.current
@@ -86,8 +86,8 @@ export function TVPage() {
       {isLobby && <TVLobbyView roomInfo={roomInfo} game={game} joinUrl={joinUrl} room={room!} />}
 
       {/* ── PLAYING STATE ── */}
-      {isPlaying && game.gameId !== 'ticket_europe' && <TVGameView game={game} clueIsNew={!!clueIsNew} />}
-      {isPlaying && game.gameId === 'ticket_europe' && <TTRETVView gameState={game.state.data} />}
+      {isPlaying && gameState?.gameId !== 'ticket_europe' && <TVGameView game={game} clueIsNew={!!clueIsNew} />}
+      {isPlaying && gameState?.gameId === 'ticket_europe' && <TTRETVView gameState={game.data} />}
 
       {/* ── GAME OVER STATE ── */}
       {isGameOver && <TVGameOverView game={game} roomInfo={roomInfo} />}
