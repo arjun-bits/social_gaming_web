@@ -4,6 +4,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { hostController } from '../lib/hostController'
 import { CastModal } from '../components/CastModal'
 import { EuropeBoard3D } from '../games/ticket_europe/components/EuropeBoard3D'
+import { PlayerHUD } from '../games/ticket_europe/components/hud/PlayerHUD'
+import { TicketModal } from '../games/ticket_europe/components/hud/TicketModal'
 
 const wordCategories = {
   Standard: [],
@@ -404,11 +406,11 @@ export function HostView() {
           const handleDrawCard = (color = 'deck') => {
             hostController.handleLocalAction({ action: 'draw_card', color });
           };
-
-          const CARD_BG: Record<string, string> = {
-            red: '#dc2626', blue: '#1d4ed8', green: '#15803d',
-            yellow: '#ca8a04', black: '#1e293b', white: '#cbd5e1',
-            pink: '#be185d', orange: '#c2410c', locomotive: '#6b7280', any: '#44403c',
+          const handleDrawTickets = () => {
+            hostController.handleLocalAction({ action: 'draw_tickets' });
+          };
+          const handleKeepTickets = (ticketIds: string[]) => {
+            hostController.handleLocalAction({ action: 'keep_tickets', ticketIds });
           };
 
           return (
@@ -432,69 +434,25 @@ export function HostView() {
                 />
               </div>
 
-              {/* ── Bottom HUD: Active Player Dashboard ── */}
+              {/* ── Bottom HUD: PlayerHUD component ── */}
               {hostPlayer && (
-                <div className="shrink-0 bg-[#0c0c14] border-t border-white/5">
-                  {/* Header row: player info */}
-                  <div className="flex items-center gap-4 px-5 py-2.5 border-b border-white/[0.03]">
-                    <div className="w-4 h-4 rounded-full ring-2 ring-white/15 shrink-0" style={{ background: hostPlayer.color }} />
-                    <span className="text-white text-sm font-black">{hostPlayer.name}</span>
-                    <div className="h-4 w-px bg-white/10" />
-                    <span className="text-[#00E5FF] text-sm font-black">⭐ {hostPlayer.score}</span>
-                    <div className="h-4 w-px bg-white/10" />
-                    <span className="text-[#6B7280] text-xs font-bold">🚂 {hostPlayer.trainsLeft}</span>
-                    <span className="text-[#6B7280] text-xs font-bold">🏠 {hostPlayer.stationsLeft}</span>
-                    <div className="flex-1" />
-                    <span className="text-[8px] uppercase tracking-[0.2em] text-[#4B5563]">
-                      {isHostTurn ? '⚡ Active' : '⏳ Waiting'}
-                    </span>
-                  </div>
+                <PlayerHUD
+                  player={hostPlayer}
+                  isMyTurn={isHostTurn}
+                  openCards={ttreData?.openCards || []}
+                  deckCount={ttreData?.deckCount || 0}
+                  ticketDeckCount={ttreData?.ticketDeckCount || 0}
+                  onDrawCard={handleDrawCard}
+                  onDrawTickets={handleDrawTickets}
+                />
+              )}
 
-                  {/* Content row: Inventory (left) | Draw Actions (right) */}
-                  <div className="flex items-start gap-0 px-5 py-3">
-                    {/* Left: Card Inventory */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[8px] uppercase tracking-[0.2em] text-[#4B5563] mb-1.5">Your Hand</p>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {Object.entries(hostPlayer.trainCards || {}).map(([color, count]: [string, any]) => count > 0 && (
-                          <div key={color}
-                            className="relative rounded-md px-2.5 py-1.5 flex items-center gap-1.5 border border-white/10"
-                            style={{ background: CARD_BG[color] || '#334' }}>
-                            <span className="text-base font-black text-white drop-shadow leading-none">{count}</span>
-                            <span className="text-[7px] uppercase tracking-wider font-bold opacity-70 text-white">{color}</span>
-                          </div>
-                        ))}
-                        {Object.values(hostPlayer.trainCards || {}).every((c: any) => !c || c === 0) && (
-                          <span className="text-[#4B5563] text-xs italic">No cards</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="w-px h-14 bg-white/5 mx-4 shrink-0 self-center" />
-
-                    {/* Right: Draw Actions */}
-                    <div className="shrink-0">
-                      <p className="text-[8px] uppercase tracking-[0.2em] text-[#4B5563] mb-1.5">Draw Card</p>
-                      <div className="flex items-center gap-1.5">
-                        {(ttreData?.openCards || []).map((color: string, idx: number) => (
-                          <button key={idx} onClick={() => handleDrawCard(color)}
-                            className="rounded-md px-2.5 py-1.5 text-[8px] uppercase font-bold text-white border border-white/10 hover:scale-105 transition-transform active:scale-95 disabled:opacity-40"
-                            style={{ background: CARD_BG[color] || '#334' }}
-                            disabled={!isHostTurn}>
-                            {color}
-                          </button>
-                        ))}
-                        <button onClick={() => handleDrawCard('deck')}
-                          className="rounded-md px-2.5 py-1.5 text-[8px] uppercase font-bold text-white border border-[#00E5FF]/30 hover:scale-105 transition-transform active:scale-95 disabled:opacity-40"
-                          style={{ background: 'linear-gradient(135deg, #00E5FF, #0077FF)' }}
-                          disabled={!isHostTurn}>
-                          🂠 Deck ({ttreData?.deckCount || 0})
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* ── Ticket Selection Modal ── */}
+              {hostPlayer && hostPlayer.pendingTickets && hostPlayer.pendingTickets.length > 0 && (
+                <TicketModal
+                  pendingTickets={hostPlayer.pendingTickets}
+                  onKeepTickets={handleKeepTickets}
+                />
               )}
             </div>
           );

@@ -1,7 +1,7 @@
 import type { GameInterface } from '../gameInterface';
 import { TTREState, GamePhase, TrainColor, RouteType } from './models';
 import type { TTREStateData, Route, Ticket, PlayerState } from './models';
-import { initialRoutes, cities } from './boardData';
+import { initialRoutes, cities, initialTickets } from './boardData';
 
 export class TTREGameEngine implements GameInterface {
     state: TTREState;
@@ -13,7 +13,8 @@ export class TTREGameEngine implements GameInterface {
             routes: [...initialRoutes],
             openCards: [],
             deckCount: 100, // mock
-            ticketDeckCount: 40 // mock
+            ticketDeck: [],
+            ticketDeckCount: 0
         });
     }
 
@@ -105,6 +106,12 @@ export class TTREGameEngine implements GameInterface {
             case 'build_station':
                 this.buildStation(playerId, payload.cityId, payload.cardsUsed);
                 break;
+            case 'draw_tickets':
+                this.drawTickets(playerId);
+                break;
+            case 'keep_tickets':
+                this.keepTickets(playerId, payload.ticketIds);
+                break;
         }
     }
 
@@ -123,12 +130,73 @@ export class TTREGameEngine implements GameInterface {
                 red: 0, blue: 0, green: 0, yellow: 0, black: 0, white: 0, orange: 0, pink: 0, locomotive: 0, any: 0
             };
             p.tickets = [];
+            p.pendingTickets = [];
             p.stationsBuilt = [];
         }
+
+        // Initialize and shuffle ticket deck
+        this.state.data.ticketDeck = this.shuffleArray([...initialTickets]);
+        this.state.data.ticketDeckCount = this.state.data.ticketDeck.length;
 
         // Deal initial cards
         this.dealInitialCards();
         this.replenishOpenCards();
+
+        // Deal 3 initial tickets to each player as pendingTickets
+        for (const id of this.state.data.playerOrder) {
+            this.dealTicketsToPlayer(id, 3);
+        }
+    }
+
+    private shuffleArray<T>(arr: T[]): T[] {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    private dealTicketsToPlayer(playerId: string, count: number) {
+        const p = this.state.data.players[playerId];
+        if (!p) return;
+        const drawn: Ticket[] = [];
+        for (let i = 0; i < count && this.state.data.ticketDeck.length > 0; i++) {
+            drawn.push(this.state.data.ticketDeck.pop()!);
+        }
+        p.pendingTickets = [...p.pendingTickets, ...drawn];
+        this.state.data.ticketDeckCount = this.state.data.ticketDeck.length;
+    }
+
+    private drawTickets(playerId: string) {
+        this.dealTicketsToPlayer(playerId, 3);
+        this.state.data.logs.push(`${this.state.data.players[playerId]?.name} drew 3 destination tickets`);
+    }
+
+    private keepTickets(playerId: string, ticketIds: string[]) {
+        const p = this.state.data.players[playerId];
+        if (!p) return;
+        if (ticketIds.length < 1) return; // must keep at least 1
+
+        const kept: Ticket[] = [];
+        const discarded: Ticket[] = [];
+
+        for (const ticket of p.pendingTickets) {
+            if (ticketIds.includes(ticket.id)) {
+                kept.push(ticket);
+            } else {
+                discarded.push(ticket);
+            }
+        }
+
+        p.tickets = [...p.tickets, ...kept];
+        p.pendingTickets = [];
+
+        // Return discarded tickets to bottom of deck
+        this.state.data.ticketDeck.unshift(...discarded);
+        this.state.data.ticketDeckCount = this.state.data.ticketDeck.length;
+
+        this.state.data.logs.push(`${p.name} kept ${kept.length} tickets, returned ${discarded.length}`);
+        this.nextTurn();
     }
 
     private dealInitialCards() {
@@ -177,12 +245,32 @@ export class TTREGameEngine implements GameInterface {
         if (!route || route.owner) return; // invalid or taken
 
         const p = this.state.data.players[playerId];
-        
-        // Deduct cards
-        let totalUsed = 0;
+
+        // ── Route claiming validation ──
+        const routeColor = route.color;
+        const needed = route.length;
+        const locos = cardsUsed.locomotive || 0;
+
+        let colored = 0;
+        if (routeColor === TrainColor.any) {
+            // Any single color + locos
+            colored = Object.entries(cardsUsed)
+                .filter(([c]) => c !== 'locomotive')
+                .reduce((s, [, n]) => s + (n || 0), 0);
+        } else {
+            colored = (cardsUsed[routeColor] || 0);
+        }
+
+        if (colored + locos < needed) return; // reject — not enough cards
+
+        // Validate player actually has the cards
         for (const [color, count] of Object.entries(cardsUsed)) {
-            p.trainCards[color as TrainColor] -= count;
-            totalUsed += count;
+            if ((p.trainCards[color as TrainColor] || 0) < (count || 0)) return;
+        }
+
+        // Deduct cards
+        for (const [color, count] of Object.entries(cardsUsed)) {
+            p.trainCards[color as TrainColor] -= count || 0;
         }
 
         // Apply
@@ -190,7 +278,48 @@ export class TTREGameEngine implements GameInterface {
         p.trainsLeft -= route.length;
         p.score += this.getRoutePoints(route.length);
 
+        // Check ticket completion
+        this.checkTicketCompletion(playerId);
+
+        this.state.data.logs.push(`${p.name} claimed ${route.from} → ${route.to}`);
         this.nextTurn();
+    }
+
+    // ── BFS/DFS ticket completion check ──
+    private checkTicketCompletion(playerId: string) {
+        const p = this.state.data.players[playerId];
+        if (!p) return;
+
+        // Build adjacency from player's owned routes
+        const adj: Record<string, Set<string>> = {};
+        for (const route of this.state.data.routes) {
+            if (route.owner === playerId) {
+                if (!adj[route.from]) adj[route.from] = new Set();
+                if (!adj[route.to]) adj[route.to] = new Set();
+                adj[route.from].add(route.to);
+                adj[route.to].add(route.from);
+            }
+        }
+
+        // BFS: check if from and to are connected
+        for (const ticket of p.tickets) {
+            if (ticket.completed) continue;
+            const visited = new Set<string>();
+            const queue = [ticket.from];
+            visited.add(ticket.from);
+            let found = false;
+            while (queue.length > 0) {
+                const current = queue.shift()!;
+                if (current === ticket.to) { found = true; break; }
+                for (const neighbor of (adj[current] || [])) {
+                    if (!visited.has(neighbor)) {
+                        visited.add(neighbor);
+                        queue.push(neighbor);
+                    }
+                }
+            }
+            ticket.completed = found;
+        }
     }
 
     private buildStation(playerId: string, cityId: string, cardsUsed: Partial<Record<TrainColor, number>>) {
@@ -199,7 +328,7 @@ export class TTREGameEngine implements GameInterface {
 
         // Deduct cards
         for (const [color, count] of Object.entries(cardsUsed)) {
-            p.trainCards[color as TrainColor] -= count;
+            p.trainCards[color as TrainColor] -= count || 0;
         }
 
         p.stationsLeft--;
@@ -228,6 +357,7 @@ export class TTREGameEngine implements GameInterface {
                 score: 0,
                 trainCards: { red: 0, blue: 0, green: 0, yellow: 0, black: 0, white: 0, orange: 0, pink: 0, locomotive: 0, any: 0 },
                 tickets: [],
+                pendingTickets: [],
                 stationsBuilt: []
             };
         }

@@ -75,7 +75,7 @@ export const POLYGON_IRELAND: Array<[number, number]> = [
 ];
 
 export const POLYGON_SCANDINAVIA: Array<[number, number]> = [
-  [420, 5],   // Northwest Norway
+  [400, 5],   // Northwest Norway (extended for Oslo)
   [530, 5],   // Northern Sweden
   [620, 10],  // Northeast Sweden
   [640, 50],  // Stockholm/Uppsala Baltic Coast
@@ -83,7 +83,8 @@ export const POLYGON_SCANDINAVIA: Array<[number, number]> = [
   [590, 150], // Southern Sweden (Skåne)
   [530, 150], // Swedish West Coast (Gothenburg)
   [460, 100], // Southern Norway (Oslofjord)
-  [400, 70]   // Southwest Norway (Bergen/Stavanger)
+  [410, 80],  // Oslo area
+  [390, 50]   // Southwest Norway (Bergen/Stavanger)
 ];
 
 export const POLYGON_JUTLAND: Array<[number, number]> = [
@@ -183,6 +184,8 @@ export const CITY_ELEVATION: Record<string, number> = {
   amsterdam:  0.03, brussels:  0.04, paris:     0.07, london:     0.06,
   edinburgh:  0.28, stockholm: 0.20, copenhagen:0.07, kyiv:       0.05,
   moskva:     0.04, bruxelles: 0.04,
+  // New cities
+  dublin:     0.06, oslo:      0.18, istanbul:  0.12, sevastopol: 0.08,
 };
 
 // ── Dense interior scatter points drives the mountain ranges ──

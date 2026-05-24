@@ -31,13 +31,6 @@ export enum RouteType {
     tunnel = 'tunnel'
 }
 
-export interface City {
-    id: string;
-    name: string;
-    x: number;
-    y: number;
-}
-
 export interface Route {
     id: string;
     from: string; // city id
@@ -66,6 +59,7 @@ export interface PlayerState {
     score: number;
     trainCards: Record<TrainColor, number>;
     tickets: Ticket[];
+    pendingTickets: Ticket[]; // tickets awaiting keep/discard decision
     stationsBuilt: string[]; // city ids
 }
 
@@ -76,6 +70,7 @@ export interface TTREStateData {
     currentPlayerIndex: number;
     openCards: TrainColor[];
     deckCount: number;
+    ticketDeck: Ticket[];       // remaining ticket draw pile
     ticketDeckCount: number;
     routes: Route[];
     logs: string[];
@@ -94,6 +89,7 @@ export class TTREState {
             currentPlayerIndex: data.currentPlayerIndex || 0,
             openCards: data.openCards || [],
             deckCount: data.deckCount || 0,
+            ticketDeck: data.ticketDeck || [],
             ticketDeckCount: data.ticketDeckCount || 0,
             routes: data.routes || [],
             logs: data.logs || [],
