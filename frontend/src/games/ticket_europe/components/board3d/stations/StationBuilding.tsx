@@ -3,6 +3,7 @@
  * Extracted from CityMarker.tsx for modularity.
  */
 import * as THREE from 'three';
+import { graph } from '../../../boardSceneGraph';
 
 // Deterministic hash from city id → variant index [0-4]
 function cityHash(id: string): number {
@@ -323,6 +324,10 @@ export function StationBuilding({ wallHex, roofHex, cityId }: StationBuildingPro
   const variant = cityHash(cityId);
   const rotY = cityRotation(cityId);
 
+  // Check if this is a high-elevation (mountain) city that needs a foundation
+  const cityNode = graph.cities[cityId];
+  const isHighElevation = cityNode && cityNode.elevation > 0.35;
+
   const renderVariant = () => {
     switch (variant) {
       case 0: return <StationGrandTerminal wallCol={wallCol} roofCol={roofCol} />;
@@ -335,7 +340,14 @@ export function StationBuilding({ wallHex, roofHex, cityId }: StationBuildingPro
   };
 
   return (
-    <group scale={[0.80, 0.80, 0.80]} rotation={[0, rotY, 0]}>
+    <group scale={[1.10, 1.10, 1.10]} rotation={[0, rotY, 0]}>
+      {/* Stone foundation pedestal for mountain cities */}
+      {isHighElevation && (
+        <mesh position={[0, -0.06, 0]} receiveShadow castShadow>
+          <boxGeometry args={[1.5, 0.14, 1.1]} />
+          <meshStandardMaterial color="#8a7c6e" roughness={0.85} flatShading />
+        </mesh>
+      )}
       {renderVariant()}
     </group>
   );

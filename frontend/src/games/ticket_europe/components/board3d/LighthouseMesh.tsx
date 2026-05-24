@@ -1,6 +1,6 @@
+import React from 'react';
 import * as THREE from 'three';
-import { toWorld } from '../EuropeBoard3D';
-import { getTerrainHeight } from './TerrainMesh';
+import { toWorld, elevationAt } from '../../boardSceneGraph';
 
 // [cityId, mapX, mapY, towerColor]
 // Stockholm and Amsterdam removed — they now render as full StationBuildings via CityMarker
@@ -56,14 +56,14 @@ function Lighthouse({ wx, wz, colorHex, baseY }: { wx: number; wz: number; color
   );
 }
 
-export function LighthouseMesh() {
+export const LighthouseMesh = React.memo(function LighthouseMesh() {
   return (
     <group>
       {LIGHTHOUSES.map(([id, mx, my, colorHex]) => {
         const [wx, wz] = toWorld(mx, my);
-        const baseY = getTerrainHeight(mx, my) - 0.01;
+        const baseY = elevationAt(mx, my) - 0.01;
         return <Lighthouse key={id} wx={wx} wz={wz} colorHex={colorHex} baseY={baseY} />;
       })}
     </group>
   );
-}
+});

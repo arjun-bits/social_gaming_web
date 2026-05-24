@@ -3,34 +3,36 @@
  * A colored pin/cylinder that appears above a city when a player builds a station there.
  * Dynamically positioned on the terrain surface. Animates in with a scale spring on mount.
  */
-import { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { City } from '../../../../core/engine/ticket_europe/models';
-import { toWorld } from '../EuropeBoard3D';
-import { getTerrainHeight } from './TerrainMesh';
+import { graph } from '../../boardSceneGraph';
 
 interface Props {
   city: City;
   playerColor: string; // hex string like '#ef4444'
 }
 
-export function StationMarker({ city, playerColor }: Props) {
+export const StationMarker = React.memo(function StationMarker({ city, playerColor }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const scaleRef = useRef(0);
 
-  const [wx, wz] = toWorld(city.x, city.y);
-  // Dynamic terrain-aware positioning
-  const wy = getTerrainHeight(city.x, city.y) + 0.05;
+  const cityNode = graph.cities[city.id];
+  const wx = cityNode.worldPos.x;
+  const wz = cityNode.worldPos.z;
+  // Pre-computed station Y with clearance
+  const wy = cityNode.stationY + 0.05;
 
-  // Animate in: scale spring 0 → 1
+  // Animate in: scale spring 0 → 1, then stop updating
   useFrame((_, delta) => {
     if (!groupRef.current) return;
+    if (scaleRef.current >= 1) return; // Animation complete — skip work
     scaleRef.current = Math.min(1, scaleRef.current + delta * 4);
     groupRef.current.scale.setScalar(scaleRef.current * 1.6);
   });
 
-  const color = new THREE.Color(playerColor);
+  const color = useMemo(() => new THREE.Color(playerColor), [playerColor]);
 
   return (
     <group ref={groupRef} position={[wx, wy, wz]} scale={0}>
@@ -71,4 +73,4 @@ export function StationMarker({ city, playerColor }: Props) {
       </mesh>
     </group>
   );
-}
+});

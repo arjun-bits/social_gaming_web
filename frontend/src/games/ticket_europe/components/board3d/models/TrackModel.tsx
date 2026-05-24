@@ -2,7 +2,7 @@
  * TrackModel.tsx — Loads Kenney GLB railroad track model for unclaimed routes.
  * Tints rail color based on route color.
  */
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 
@@ -14,7 +14,7 @@ interface TrackModelProps {
   scale?: number;
 }
 
-export function TrackModel({ railColor, slotLen, scale = 1 }: TrackModelProps) {
+export const TrackModel = React.memo(function TrackModel({ railColor, slotLen, scale = 1 }: TrackModelProps) {
   const { scene } = useGLTF(RAILROAD_STRAIGHT);
 
   const clonedScene = useMemo(() => {
@@ -42,6 +42,6 @@ export function TrackModel({ railColor, slotLen, scale = 1 }: TrackModelProps) {
       <primitive object={clonedScene} />
     </group>
   );
-}
+});
 
 useGLTF.preload(RAILROAD_STRAIGHT);

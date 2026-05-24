@@ -3,10 +3,9 @@
  * Rhine, Danube, Seine, Rhône, Vistula, and Dnieper as visible blue ribbon meshes
  * with dark river banks that sit clearly above the terrain surface.
  */
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { toWorld } from '../EuropeBoard3D';
-import { getTerrainHeight } from './TerrainMesh';
+import { toWorld, elevationAt } from '../../boardSceneGraph';
 
 // River paths in board coordinates [x, y]
 // Each river is a polyline of waypoints
@@ -85,8 +84,8 @@ function RiverStrip({ river, isBank }: { river: typeof RIVERS[0]; isBank?: boole
       const [wx1, wz1] = toWorld(x1, y1);
       const [wx2, wz2] = toWorld(x2, y2);
 
-      const wy1 = getTerrainHeight(x1, y1) + (isBank ? 0.05 : 0.07);
-      const wy2 = getTerrainHeight(x2, y2) + (isBank ? 0.05 : 0.07);
+      const wy1 = elevationAt(x1, y1) + (isBank ? 0.015 : 0.025);
+      const wy2 = elevationAt(x2, y2) + (isBank ? 0.015 : 0.025);
 
       // Perpendicular direction for width
       const dx = wx2 - wx1;
@@ -113,7 +112,7 @@ function RiverStrip({ river, isBank }: { river: typeof RIVERS[0]; isBank?: boole
 
   if (isBank) {
     return (
-      <mesh geometry={geometry}>
+      <mesh geometry={geometry} raycast={() => {}}>
         <meshStandardMaterial
           color="#2a1a0a"
           transparent
@@ -121,13 +120,16 @@ function RiverStrip({ river, isBank }: { river: typeof RIVERS[0]; isBank?: boole
           side={THREE.DoubleSide}
           depthWrite={false}
           roughness={0.9}
+          polygonOffset
+          polygonOffsetFactor={-2}
+          polygonOffsetUnits={-2}
         />
       </mesh>
     );
   }
 
   return (
-    <mesh geometry={geometry}>
+    <mesh geometry={geometry} raycast={() => {}}>
       <meshStandardMaterial
         color={river.color}
         emissive="#1a6880"
@@ -135,14 +137,17 @@ function RiverStrip({ river, isBank }: { river: typeof RIVERS[0]; isBank?: boole
         transparent
         opacity={0.92}
         side={THREE.DoubleSide}
-        depthWrite={true}
+        depthWrite={false}
         roughness={0.4}
+        polygonOffset
+        polygonOffsetFactor={-3}
+        polygonOffsetUnits={-3}
       />
     </mesh>
   );
 }
 
-export function RiverMesh() {
+export const RiverMesh = React.memo(function RiverMesh() {
   return (
     <group>
       {/* River banks (below water) */}
@@ -155,4 +160,4 @@ export function RiverMesh() {
       ))}
     </group>
   );
-}
+});

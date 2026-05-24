@@ -3,10 +3,9 @@
  * Explicit low-poly mountain cones at Alpine, Pyrenean, Scandinavian,
  * Balkan, and Scottish peak locations. Two-cone design: grey body + snow cap.
  */
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { toWorld } from '../EuropeBoard3D';
-import { getTerrainHeight } from './TerrainMesh';
+import { toWorld, elevationAt } from '../../boardSceneGraph';
 import { cities, initialRoutes } from '../../../../core/engine/ticket_europe/boardData';
 
 function distToSegmentSq(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
@@ -72,7 +71,7 @@ const MOUNTAIN_DEFS: Array<[number, number, number, number]> = [
 const BODY_COLOR = new THREE.Color('#7a6b58'); // Warm earthy slate grey
 const SNOW_COLOR = new THREE.Color('#fdfcf7'); // Soft warm white snow cap
 
-function MountainPeak({
+const MountainPeak = React.memo(function MountainPeak({
   wx, wz, radius, height, baseY, seed,
 }: { wx: number; wz: number; radius: number; height: number; baseY: number; seed: number }) {
   const snowH = height * 0.28;
@@ -86,30 +85,30 @@ function MountainPeak({
   return (
     <group position={[wx, baseY + height * 0.5, wz]} rotation={[0, rotY, 0]} scale={[scaleX, 1.0, scaleZ]}>
       {/* Main cone body - 4-sided tectonic pyramid for Image 2 look */}
-      <mesh castShadow receiveShadow>
+      <mesh castShadow receiveShadow raycast={() => {}}>
         <coneGeometry args={[radius, height, 4, 1]} />
         <meshStandardMaterial color={BODY_COLOR} roughness={0.82} metalness={0.05} flatShading />
       </mesh>
       {/* Snow cap */}
-      <mesh position={[0, height * 0.5 - snowH * 0.35, 0]} castShadow receiveShadow>
+      <mesh position={[0, height * 0.5 - snowH * 0.35, 0]} castShadow receiveShadow raycast={() => {}}>
         <coneGeometry args={[snowR, snowH, 4, 1]} />
         <meshStandardMaterial color={SNOW_COLOR} roughness={0.80} metalness={0.02} flatShading />
       </mesh>
     </group>
   );
-}
+});
 
-export function MountainMesh() {
+export const MountainMesh = React.memo(function MountainMesh() {
   const mounts = useMemo(() => {
     const result: Array<{ wx: number; wz: number; r: number; h: number; baseY: number; seed: number }> = [];
     
     MOUNTAIN_DEFS.forEach(([mx, my, r, h], idx) => {
-      // Clean-graph rule: prevent mountains from spawning on top of cities (threshold 40)
+      // Clean-graph rule: prevent mountains from spawning on top of cities (threshold 55)
       let tooClose = false;
       for (const city of Object.values(cities)) {
         const dx = city.x - mx;
         const dy = city.y - my;
-        if (dx * dx + dy * dy < 1600) { // 40^2
+        if (dx * dx + dy * dy < 3025) { // 55^2
           tooClose = true;
           break;
         }
@@ -131,7 +130,7 @@ export function MountainMesh() {
       if (tooClose) return;
 
       const [wx, wz] = toWorld(mx, my);
-      const baseY = getTerrainHeight(mx, my) - 0.02;
+      const baseY = elevationAt(mx, my) - 0.02;
       result.push({ wx, wz, r, h, baseY, seed: idx });
     });
     
@@ -145,4 +144,4 @@ export function MountainMesh() {
       ))}
     </group>
   );
-}
+});

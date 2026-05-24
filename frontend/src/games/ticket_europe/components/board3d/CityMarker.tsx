@@ -3,14 +3,13 @@
  * Slimmed down: landmarks + station variants extracted to ./stations/
  * Constants extracted to ./constants.ts
  */
-import { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import * as THREE from 'three';
 import { Text, Billboard } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { City } from '../../../../core/engine/ticket_europe/models';
-import { toWorld } from '../EuropeBoard3D';
-import { getTerrainHeight } from './TerrainMesh';
-import { CITY_REGION, REGION_WALL, REGION_ROOF, LIGHTHOUSE_CITIES } from './constants';
+import { graph } from '../../boardSceneGraph';
+import { CITY_REGION, REGION_WALL, REGION_ROOF, LIGHTHOUSE_CITIES, LABEL_OFFSETS } from './constants';
 import {
   StationBuilding,
   EiffelTower, OnionDomeCathedral, BigBen,
@@ -23,16 +22,18 @@ interface Props {
   onClick: (cityId: string) => void;
 }
 
-export function CityMarker({ city, interactive, onClick }: Props) {
+export const CityMarker = React.memo(function CityMarker({ city, interactive, onClick }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
 
-  const [wx, wz] = toWorld(city.x, city.y);
+  const cityNode = graph.cities[city.id];
+  const wx = cityNode.worldPos.x;
+  const wz = cityNode.worldPos.z;
 
-  // Dynamic elevation — guaranteed minimum of 0.08 so no station sinks into terrain
-  const baseY = Math.max(getTerrainHeight(city.x, city.y), 0.08);
+  // Pre-computed elevation with guaranteed clearance
+  const baseY = cityNode.stationY;
 
-  const regionKey = CITY_REGION[city.id] ?? 'eastern';
+  const regionKey = cityNode.region;
   const wallHex = REGION_WALL[regionKey] ?? '#c8b888';
   const roofHex = REGION_ROOF[regionKey] ?? '#5a3820';
 
@@ -52,6 +53,9 @@ export function CityMarker({ city, interactive, onClick }: Props) {
   // Calculate dynamic rounded black pill badge width based on name length
   const badgeWidth = city.name.length * 0.20 + 0.50;
 
+  // Per-city label offsets for de-collision
+  const labelOffset = LABEL_OFFSETS[city.id] ?? [0, 0, 0];
+
   // Render distinctive custom 3D landmark shapes for major cities
   const renderLandmark = () => {
     switch (city.id) {
@@ -70,7 +74,7 @@ export function CityMarker({ city, interactive, onClick }: Props) {
   if (LIGHTHOUSE_CITIES.has(city.id)) {
     return (
       <group position={[wx, baseY, wz]}>
-        <Billboard position={[0, 1.2, 0]}>
+        <Billboard position={[labelOffset[0], 1.2 + labelOffset[1], labelOffset[2]]}>
           {/* Connecting pin line */}
           <mesh position={[0, -0.6, -0.02]}>
             <cylinderGeometry args={[0.004, 0.004, 1.2, 4]} />
@@ -113,8 +117,8 @@ export function CityMarker({ city, interactive, onClick }: Props) {
 
       {/* Base glow disc for clear node identification */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <circleGeometry args={[0.35, 16]} />
-        <meshBasicMaterial color="#ffffff" opacity={0.25} transparent depthWrite={false} />
+        <circleGeometry args={[0.48, 16]} />
+        <meshBasicMaterial color="#ffffff" opacity={0.35} transparent depthWrite={false} />
       </mesh>
 
       {/* Floating Connecting Line from label to landmark */}
@@ -124,7 +128,7 @@ export function CityMarker({ city, interactive, onClick }: Props) {
       </mesh>
 
       {/* Label Billboards with premium rounded pill badges */}
-      <Billboard position={[0, labelY, 0]}>
+      <Billboard position={[labelOffset[0], labelY + labelOffset[1], labelOffset[2]]}>
         <mesh position={[0, 0.16, -0.02]} receiveShadow={false}>
           <planeGeometry args={[badgeWidth, 0.50]} />
           <meshBasicMaterial color="#07111e" opacity={0.94} transparent depthWrite={false} />
@@ -173,4 +177,4 @@ export function CityMarker({ city, interactive, onClick }: Props) {
       )}
     </group>
   );
-}
+});

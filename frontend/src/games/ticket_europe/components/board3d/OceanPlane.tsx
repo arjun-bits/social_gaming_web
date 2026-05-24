@@ -3,7 +3,7 @@
  * Three depth layers with vibrant teal-blue colors that render correctly
  * regardless of camera angle or lighting setup.
  */
-import { useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 
@@ -51,33 +51,33 @@ function WaveOceanLayer({
   });
 
   return (
-    <mesh ref={meshRef} geometry={geometry} position={[0, yPos, 0]} receiveShadow>
+    <mesh ref={meshRef} geometry={geometry} position={[0, yPos, 0]} receiveShadow raycast={() => {}}>
       <meshLambertMaterial color={color} flatShading side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
-export function OceanPlane() {
+export const OceanPlane = React.memo(function OceanPlane() {
   return (
     <>
-      {/* Deep ocean — large, dark navy, gentle waves */}
+      {/* Deep ocean — largest, fills entire board tray with no edge gaps */}
       <WaveOceanLayer
-        width={36} depth={28} yPos={-0.16}
+        width={42} depth={32} yPos={-0.16}
         color="#0b4a78"
-        segments={48} waveAmp={0.025} waveFreq={0.6} waveSpeed={0.3}
+        segments={24} waveAmp={0.025} waveFreq={0.6} waveSpeed={0.3}
       />
       {/* Mid-ocean — teal, slightly more active */}
       <WaveOceanLayer
-        width={34} depth={26} yPos={-0.14}
+        width={40} depth={30} yPos={-0.14}
         color="#1a8a9e"
-        segments={40} waveAmp={0.02} waveFreq={0.7} waveSpeed={0.35}
+        segments={20} waveAmp={0.02} waveFreq={0.7} waveSpeed={0.35}
       />
       {/* Shallow coastal — bright turquoise, visible ripples */}
       <WaveOceanLayer
-        width={32} depth={24} yPos={-0.12}
+        width={38} depth={28} yPos={-0.12}
         color="#38bdd4"
-        segments={36} waveAmp={0.015} waveFreq={0.8} waveSpeed={0.4}
+        segments={18} waveAmp={0.015} waveFreq={0.8} waveSpeed={0.4}
       />
     </>
   );
-}
+});

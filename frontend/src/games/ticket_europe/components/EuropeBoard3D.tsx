@@ -3,9 +3,9 @@
  * True 2.5D top-down isometric view — board fills canvas like a board game.
  * Camera: [0, 22, 10] fov=45 → ~65° above horizon. Pan+zoom, no rotation.
  */
-import React, { Suspense, useCallback, useMemo } from 'react';
+import React, { Suspense, useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, BakeShadows, AdaptiveDpr, Preload } from '@react-three/drei';
 import * as THREE from 'three';
 import type { TTREStateData } from '../../../core/engine/ticket_europe/models';
 import { TerrainMesh } from './board3d/TerrainMesh';
@@ -17,16 +17,18 @@ import { MountainMesh } from './board3d/MountainMesh';
 import { RouteMesh } from './board3d/RouteMesh';
 import { CityMarker } from './board3d/CityMarker';
 import { StationMarker } from './board3d/StationMarker';
+import { TableSurface } from './board3d/TableSurface';
 import { cities, initialRoutes } from '../../../core/engine/ticket_europe/boardData';
 import { RiverMesh } from './board3d/RiverMesh';
 
-// ── Coordinate mapping ──────────────────────────────────────────────────
-// boardData: x ∈ [0,1000], y ∈ [0,800]  →  3D: X ∈ [-18,+18], Z ∈ [-13,+13]
-export function toWorld(x: number, y: number): [number, number] {
-  return [
-    (x / 1000) * 36 - 18,
-    (y / 800) * 26 - 13,
-  ];
+import { graph, toWorld } from '../boardSceneGraph';
+
+// Re-export toWorld for backward compatibility
+export { toWorld };
+
+// Dev-mode validation: log any graph errors on first import
+if (import.meta.env.DEV && graph.validationErrors.length > 0) {
+  console.warn('[EuropeBoard3D] Board graph has validation errors — check console');
 }
 
 interface Props {
@@ -53,8 +55,30 @@ function CameraLimiter() {
   return null;
 }
 
+/** Resets camera to default isometric position when exiting inspect mode */
+function CameraResetOnExit({ inspectMode }: { inspectMode: boolean }) {
+  const { camera, controls } = useThree();
+  const wasInspecting = useRef(false);
+
+  useEffect(() => {
+    if (wasInspecting.current && !inspectMode) {
+      // Snap camera back to default isometric position
+      camera.position.set(18, 22, 22);
+      camera.updateProjectionMatrix();
+      if (controls) {
+        (controls as any).target.set(0, 0, -1);
+        (controls as any).update();
+      }
+    }
+    wasInspecting.current = inspectMode;
+  }, [inspectMode, camera, controls]);
+
+  return null;
+}
+
 export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClick }: Props) {
   const routes = gameState?.routes ?? initialRoutes;
+  const [inspectMode, setInspectMode] = useState(false);
 
   const playerColors = useMemo<Record<string, string>>(() => {
     if (!gameState) return {};
@@ -71,7 +95,68 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
   const handleRouteClick = useCallback((id: string) => { if (interactive) onRouteClick?.(id); }, [interactive, onRouteClick]);
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#0d0906' }}>
+    <div style={{ width: '100%', height: '100%', background: '#0d0906', position: 'relative' }}>
+      {/* ── Inspect Mode Toggle Button ── */}
+      <button
+        onClick={() => setInspectMode(prev => !prev)}
+        style={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '10px 18px',
+          border: inspectMode ? '2px solid #00e5ff' : '2px solid rgba(255,255,255,0.2)',
+          borderRadius: 12,
+          background: inspectMode
+            ? 'linear-gradient(135deg, rgba(0,229,255,0.25), rgba(0,150,255,0.15))'
+            : 'linear-gradient(135deg, rgba(20,20,30,0.85), rgba(30,30,45,0.85))',
+          backdropFilter: 'blur(12px)',
+          color: inspectMode ? '#00e5ff' : '#ffffff',
+          fontSize: 13,
+          fontWeight: 700,
+          fontFamily: 'Inter, system-ui, sans-serif',
+          letterSpacing: '0.5px',
+          cursor: 'pointer',
+          transition: 'all 0.25s ease',
+          boxShadow: inspectMode
+            ? '0 0 20px rgba(0,229,255,0.3), inset 0 0 12px rgba(0,229,255,0.1)'
+            : '0 4px 16px rgba(0,0,0,0.4)',
+          textTransform: 'uppercase',
+        }}
+        title={inspectMode ? 'Click to return to Pan & Zoom mode' : 'Click to rotate the board and inspect behind stations'}
+      >
+        <span style={{ fontSize: 18 }}>{inspectMode ? '🔓' : '🔍'}</span>
+        {inspectMode ? 'Exit Inspect' : 'Inspect Mode'}
+      </button>
+
+      {/* Mode indicator badge */}
+      {inspectMode && (
+        <div style={{
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 100,
+          padding: '8px 20px',
+          borderRadius: 20,
+          background: 'rgba(0,229,255,0.15)',
+          border: '1px solid rgba(0,229,255,0.3)',
+          backdropFilter: 'blur(8px)',
+          color: '#00e5ff',
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: 'Inter, system-ui, sans-serif',
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          pointerEvents: 'none',
+        }}>
+          🔄 Drag to rotate · Zoom locked · Click button to exit
+        </div>
+      )}
+
       <Canvas
         dpr={[1, 2]}
         shadows={{ type: THREE.PCFSoftShadowMap }}
@@ -129,63 +214,52 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
         
         <hemisphereLight args={['#ffffff', '#8899aa', 0.35]} />
 
-        {/* ── OrbitControls — pan + zoom, rotation LOCKED (Locks true 3D diagonal isometric view) ── */}
+        {/* ── OrbitControls — mode-dependent ── */}
         <OrbitControls
-          enableRotate={false}
-          enablePan={true}
-          enableZoom={true}
+          enableRotate={inspectMode}
+          enablePan={!inspectMode}
+          enableZoom={!inspectMode}
           panSpeed={1.2}
           zoomSpeed={0.8}
+          rotateSpeed={0.6}
           minZoom={14}
           maxZoom={150}
+          minPolarAngle={Math.PI * 0.15}
+          maxPolarAngle={Math.PI * 0.48}
           screenSpacePanning={true}
           target={[0, 0, -1]}
           makeDefault
-          mouseButtons={{
+          mouseButtons={inspectMode ? {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: undefined as any,
+            RIGHT: THREE.MOUSE.ROTATE,
+          } : {
             LEFT: THREE.MOUSE.PAN,
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.PAN,
           }}
-          touches={{
+          touches={inspectMode ? {
+            ONE: THREE.TOUCH.ROTATE,
+            TWO: THREE.TOUCH.ROTATE,
+          } : {
             ONE: THREE.TOUCH.PAN,
             TWO: THREE.TOUCH.DOLLY_PAN,
           }}
         />
 
-        {/* Limit camera viewport off-board */}
+        {/* Camera helpers */}
         <CameraLimiter />
+        <CameraResetOnExit inspectMode={inspectMode} />
 
         {/* ── Scene ── */}
         <Suspense fallback={null}>
-          {/* ── High-definition tactile Walnut Wood Plank table surface (organic planks + HD grain) ── */}
-          <group position={[0, -0.42, 0]}>
-            {Array.from({ length: 28 }).map((_, i) => {
-              // Planks run vertically (along Z). Width: 5.0, dark spacing gap: 0.1
-              const xPos = (i - 13.5) * 5.1;
-              const shades = ['#22140a', '#291b0f', '#2f1f13', '#332317'];
-              // Fix float index bug to avoid undefined color output (resolved grey/white table issue)
-              const index = Math.floor(Math.abs(Math.sin(i * 12.7) * shades.length)) % shades.length;
-              const color = shades[index];
-              return (
-                <group key={i} position={[xPos, 0, 0]}>
-                  {/* Base Plank */}
-                  <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                    <planeGeometry args={[5.0, 100]} />
-                    <meshStandardMaterial color={color} roughness={0.85} metalness={0.06} />
-                  </mesh>
-                  {/* Subtle organic dark wood grain stripes running along the Z axis */}
-                  <mesh position={[-1.2, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                    <planeGeometry args={[0.06, 100]} />
-                    <meshStandardMaterial color="#120803" roughness={0.9} transparent opacity={0.35} />
-                  </mesh>
-                  <mesh position={[0.8, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                    <planeGeometry args={[0.08, 100]} />
-                    <meshStandardMaterial color="#120803" roughness={0.9} transparent opacity={0.35} />
-                  </mesh>
-                </group>
-              );
-            })}
-          </group>
+          {/* Drei quality: bake shadows once, auto-reduce DPR, preload all assets */}
+          <BakeShadows />
+          <AdaptiveDpr pixelated />
+          <Preload all />
+
+          {/* ── Instanced Walnut Wood Plank table surface (2 draw calls) ── */}
+          <TableSurface />
 
           {/* ── Premium High-Definition Board Game Tray & Frames (Enlarged to 32x24) ── */}
           {/* Thick Dark Mahogany Base - Lowered so ocean sits above it */}

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 export function EiffelTower() {
   return (
-    <group scale={[0.48, 0.48, 0.48]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* 4 Angled Legs */}
       {([-0.5, 0.5] as const).map(x =>
         ([-0.5, 0.5] as const).map(z => (
@@ -42,7 +42,7 @@ export function EiffelTower() {
 
 export function OnionDomeCathedral() {
   return (
-    <group scale={[0.48, 0.48, 0.48]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Main Base block */}
       <mesh position={[0, 0.3, 0]} castShadow>
         <boxGeometry args={[1.3, 0.6, 1.0]} />
@@ -85,7 +85,7 @@ export function OnionDomeCathedral() {
 
 export function BigBen() {
   return (
-    <group scale={[0.48, 0.48, 0.48]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Sandstone tower shaft */}
       <mesh position={[0, 0.45, 0]} castShadow>
         <boxGeometry args={[0.48, 0.9, 0.48]} />
@@ -124,7 +124,7 @@ export function BigBen() {
 
 export function RomanRotunda() {
   return (
-    <group scale={[0.50, 0.50, 0.50]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Rotunda base wall */}
       <mesh position={[0, 0.25, 0]} castShadow>
         <cylinderGeometry args={[0.62, 0.65, 0.5, 12]} />
@@ -146,7 +146,7 @@ export function RomanRotunda() {
 
 export function GreekTemple() {
   return (
-    <group scale={[0.50, 0.50, 0.50]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Pedestal platform */}
       <mesh position={[0, 0.04, 0]} receiveShadow>
         <boxGeometry args={[1.3, 0.08, 0.82]} />
@@ -177,7 +177,7 @@ export function GreekTemple() {
 
 export function CanalHouses() {
   return (
-    <group scale={[0.50, 0.50, 0.50]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Three adjacent gabled narrow canal house rows */}
       {([-0.36, 0, 0.36] as const).map((xOffset, idx) => {
         const houses = [
@@ -205,7 +205,7 @@ export function CanalHouses() {
 
 export function EdinburghCastle() {
   return (
-    <group scale={[0.50, 0.50, 0.50]}>
+    <group scale={[0.65, 0.65, 0.65]}>
       {/* Main rocky base mound */}
       <mesh position={[0, 0.05, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.2, 0.1, 0.9]} />

@@ -3,9 +3,10 @@
  * Decorative sailboats and cargo ships scattered across the Mediterranean, Atlantic,
  * North Sea, and Baltic. Low-poly board-game style with proper boat shapes.
  */
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { toWorld } from '../EuropeBoard3D';
+import { toWorld } from '../../boardSceneGraph';
+import { isLandPoint } from './TerrainMesh';
 
 // [mapX, mapY, rotationY]
 const BOATS: Array<[number, number, number]> = [
@@ -79,13 +80,16 @@ function makeHullGeometry(length: number, width: number, height: number): THREE.
   return geo;
 }
 
-function Sailboat({ position, rotY }: { position: THREE.Vector3; rotY: number }) {
-  const hullGeo = useMemo(() => makeHullGeometry(0.28, 0.14, 0.06), []);
+// Pre-create shared hull geometries at module level (avoid re-creation on re-render)
+const SAILBOAT_HULL = makeHullGeometry(0.28, 0.14, 0.06);
+const CARGO_HULL = makeHullGeometry(0.65, 0.22, 0.10);
+
+const Sailboat = React.memo(function Sailboat({ position, rotY }: { position: [number, number, number]; rotY: number }) {
 
   return (
     <group position={position} rotation={[0, rotY, 0]} scale={[1.6, 1.6, 1.6]}>
       {/* Hull with pointed bow */}
-      <mesh geometry={hullGeo} position={[0, 0.04, 0]} castShadow receiveShadow>
+      <mesh geometry={SAILBOAT_HULL} position={[0, 0.04, 0]} castShadow receiveShadow>
         <meshStandardMaterial color="#c8a060" roughness={0.68} metalness={0.10} flatShading />
       </mesh>
       {/* Mast */}
@@ -105,15 +109,14 @@ function Sailboat({ position, rotY }: { position: THREE.Vector3; rotY: number })
       </mesh>
     </group>
   );
-}
+});
 
-function CargoShip({ position, rotY }: { position: THREE.Vector3; rotY: number }) {
-  const hullGeo = useMemo(() => makeHullGeometry(0.65, 0.22, 0.10), []);
+const CargoShip = React.memo(function CargoShip({ position, rotY }: { position: [number, number, number]; rotY: number }) {
 
   return (
     <group position={position} rotation={[0, rotY, 0]} scale={[1.4, 1.4, 1.4]}>
       {/* Hull with pointed bow */}
-      <mesh geometry={hullGeo} position={[0, 0.06, 0]} castShadow receiveShadow>
+      <mesh geometry={CARGO_HULL} position={[0, 0.06, 0]} castShadow receiveShadow>
         <meshStandardMaterial color="#8f1414" roughness={0.72} metalness={0.12} flatShading />
       </mesh>
       
@@ -152,18 +155,20 @@ function CargoShip({ position, rotY }: { position: THREE.Vector3; rotY: number }
       </mesh>
     </group>
   );
-}
+});
 
-export function OceanDecorations() {
+export const OceanDecorations = React.memo(function OceanDecorations() {
   return (
     <group>
       {/* Sailboats */}
       {BOATS.map(([mx, my, rotY], i) => {
+        // Skip boats that would render on land
+        if (isLandPoint(mx, my)) return null;
         const [wx, wz] = toWorld(mx, my);
         return (
           <Sailboat
             key={`boat_${i}`}
-            position={new THREE.Vector3(wx, -0.05, wz)}
+            position={[wx, -0.05, wz]}
             rotY={rotY}
           />
         );
@@ -171,15 +176,17 @@ export function OceanDecorations() {
 
       {/* Cargo Ships */}
       {SHIPS.map(([mx, my, rotY], i) => {
+        // Skip ships that would render on land
+        if (isLandPoint(mx, my)) return null;
         const [wx, wz] = toWorld(mx, my);
         return (
           <CargoShip
             key={`ship_${i}`}
-            position={new THREE.Vector3(wx, -0.05, wz)}
+            position={[wx, -0.05, wz]}
             rotY={rotY}
           />
         );
       })}
     </group>
   );
-}
+});

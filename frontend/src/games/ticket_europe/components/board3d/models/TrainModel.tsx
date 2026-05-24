@@ -2,7 +2,7 @@
  * TrainModel.tsx — Loads Kenney GLB train car models for claimed routes.
  * Maps route/player colors to specific train car models.
  */
-import { useRef, useMemo } from 'react';
+import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useGLTF } from '@react-three/drei';
 
@@ -37,7 +37,7 @@ interface TrainModelProps {
   scale?: number;
 }
 
-export function TrainModel({ routeColor, playerColor, slotIndex, slotLen, scale = 1 }: TrainModelProps) {
+export const TrainModel = React.memo(function TrainModel({ routeColor, playerColor, slotIndex, slotLen, scale = 1 }: TrainModelProps) {
   const modelPath = getModelPath(routeColor, slotIndex);
   const { scene } = useGLTF(modelPath);
   const groupRef = useRef<THREE.Group>(null);
@@ -68,7 +68,7 @@ export function TrainModel({ routeColor, playerColor, slotIndex, slotLen, scale 
       <primitive object={clonedScene} />
     </group>
   );
-}
+});
 
 // Preload all models to avoid pop-in
 useGLTF.preload(LOCOMOTIVE);
