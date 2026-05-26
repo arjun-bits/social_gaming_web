@@ -62,19 +62,19 @@ export const OceanPlane = React.memo(function OceanPlane() {
     <>
       {/* Deep ocean — largest, fills entire board tray with no edge gaps */}
       <WaveOceanLayer
-        width={42} depth={32} yPos={-0.16}
+        width={63} depth={48} yPos={-0.16}
         color="#0b4a78"
         segments={24} waveAmp={0.025} waveFreq={0.6} waveSpeed={0.3}
       />
       {/* Mid-ocean — teal, slightly more active */}
       <WaveOceanLayer
-        width={40} depth={30} yPos={-0.14}
+        width={60} depth={45} yPos={-0.14}
         color="#1a8a9e"
         segments={20} waveAmp={0.02} waveFreq={0.7} waveSpeed={0.35}
       />
       {/* Shallow coastal — bright turquoise, visible ripples */}
       <WaveOceanLayer
-        width={38} depth={28} yPos={-0.12}
+        width={57} depth={42} yPos={-0.12}
         color="#38bdd4"
         segments={18} waveAmp={0.015} waveFreq={0.8} waveSpeed={0.4}
       />

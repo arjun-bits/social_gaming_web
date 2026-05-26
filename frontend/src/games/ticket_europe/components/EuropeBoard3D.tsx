@@ -45,10 +45,10 @@ function CameraLimiter() {
       const target = (controls as any).target;
       if (target) {
         // Clamp OrbitControls target so user cannot pan off the board
-        if (target.x < -18) target.x = -18;
-        if (target.x > 18) target.x = 18;
-        if (target.z < -13) target.z = -13;
-        if (target.z > 13) target.z = 13;
+        if (target.x < -27) target.x = -27;
+        if (target.x > 27) target.x = 27;
+        if (target.z < -19.5) target.z = -19.5;
+        if (target.z > 19.5) target.z = 19.5;
       }
     }
   });
@@ -63,7 +63,7 @@ function CameraResetOnExit({ inspectMode }: { inspectMode: boolean }) {
   useEffect(() => {
     if (wasInspecting.current && !inspectMode) {
       // Snap camera back to default isometric position
-      camera.position.set(18, 22, 22);
+      camera.position.set(27, 33, 33);
       camera.updateProjectionMatrix();
       if (controls) {
         (controls as any).target.set(0, 0, -1);
@@ -95,7 +95,7 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
   const handleRouteClick = useCallback((id: string) => { if (interactive) onRouteClick?.(id); }, [interactive, onRouteClick]);
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#0d0906', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', background: '#1a120a', position: 'relative' }}>
       {/* ── Inspect Mode Toggle Button ── */}
       <button
         onClick={() => setInspectMode(prev => !prev)}
@@ -167,13 +167,16 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
           toneMappingExposure: 1.0,
         }}
         frameloop="always"
-        style={{ background: '#0d0906' }}
+        style={{ background: '#1a120a' }}
       >
+        {/* Scene background color — warm walnut brown (matches table surface) */}
+        <color attach="background" args={['#1a120a']} />
+
         {/* TRUE DIAGONAL 3D ISOMETRIC VIEWPORT (Matches reference Image 2 perfectly) */}
         <OrthographicCamera
           makeDefault
-          position={[18, 22, 22]}
-          zoom={36}
+          position={[27, 33, 33]}
+          zoom={24}
           near={0.1}
           far={500}
         />
@@ -190,11 +193,11 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
           shadow-camera-near={0.5}
-          shadow-camera-far={100}
-          shadow-camera-left={-25}
-          shadow-camera-right={25}
-          shadow-camera-top={25}
-          shadow-camera-bottom={-25}
+          shadow-camera-far={150}
+          shadow-camera-left={-38}
+          shadow-camera-right={38}
+          shadow-camera-top={38}
+          shadow-camera-bottom={-38}
           shadow-bias={-0.0004}
         />
         
@@ -222,8 +225,8 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
           panSpeed={1.2}
           zoomSpeed={0.8}
           rotateSpeed={0.6}
-          minZoom={14}
-          maxZoom={150}
+          minZoom={10}
+          maxZoom={120}
           minPolarAngle={Math.PI * 0.15}
           maxPolarAngle={Math.PI * 0.48}
           screenSpacePanning={true}
@@ -264,74 +267,74 @@ export function EuropeBoard3D({ gameState, interactive, onCityClick, onRouteClic
           {/* ── Premium High-Definition Board Game Tray & Frames (Enlarged to 32x24) ── */}
           {/* Thick Dark Mahogany Base - Lowered so ocean sits above it */}
           <mesh position={[0, -0.25, 0]} receiveShadow castShadow>
-            <boxGeometry args={[44, 0.16, 34]} />
+            <boxGeometry args={[66, 0.16, 51]} />
             <meshStandardMaterial color="#140a04" roughness={0.76} metalness={0.15} />
           </mesh>
 
           {/* Satin Polished Mahogany Wooden Borders framing the active board area */}
           {/* Top Border */}
-          <mesh position={[0, -0.01, -17.0]} receiveShadow castShadow>
-            <boxGeometry args={[44.4, 0.12, 0.4]} />
+          <mesh position={[0, -0.01, -25.5]} receiveShadow castShadow>
+            <boxGeometry args={[66.4, 0.12, 0.5]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Bottom Border */}
-          <mesh position={[0, -0.01, 17.0]} receiveShadow castShadow>
-            <boxGeometry args={[44.4, 0.12, 0.4]} />
+          <mesh position={[0, -0.01, 25.5]} receiveShadow castShadow>
+            <boxGeometry args={[66.4, 0.12, 0.5]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Left Border */}
-          <mesh position={[-22.0, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 34]} />
+          <mesh position={[-33.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.5, 0.12, 51]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
           {/* Right Border */}
-          <mesh position={[22.0, -0.01, 0]} receiveShadow castShadow>
-            <boxGeometry args={[0.4, 0.12, 34]} />
+          <mesh position={[33.0, -0.01, 0]} receiveShadow castShadow>
+            <boxGeometry args={[0.5, 0.12, 51]} />
             <meshStandardMaterial color="#2d1305" roughness={0.68} metalness={0.12} />
           </mesh>
 
           {/* Polished Brass Corner Braces for deluxe tabletop board game styling */}
           {/* Top-Left Corner Brace */}
-          <group position={[-21.7, 0.051, -16.7]}>
+          <group position={[-32.5, 0.051, -25.0]}>
             <mesh castShadow>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
-            <mesh castShadow position={[0, 0, 0.24]} rotation={[0, Math.PI / 2, 0]}>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+            <mesh castShadow position={[0, 0, 0.28]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
           </group>
           {/* Top-Right Corner Brace */}
-          <group position={[21.7, 0.051, -16.7]}>
+          <group position={[32.5, 0.051, -25.0]}>
             <mesh castShadow>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
-            <mesh castShadow position={[0, 0, 0.24]} rotation={[0, Math.PI / 2, 0]}>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+            <mesh castShadow position={[0, 0, 0.28]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
           </group>
           {/* Bottom-Left Corner Brace */}
-          <group position={[-21.7, 0.051, 16.7]}>
+          <group position={[-32.5, 0.051, 25.0]}>
             <mesh castShadow>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
-            <mesh castShadow position={[0, 0, -0.24]} rotation={[0, Math.PI / 2, 0]}>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+            <mesh castShadow position={[0, 0, -0.28]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
           </group>
           {/* Bottom-Right Corner Brace */}
-          <group position={[21.7, 0.051, 16.7]}>
+          <group position={[32.5, 0.051, 25.0]}>
             <mesh castShadow>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
-            <mesh castShadow position={[0, 0, -0.24]} rotation={[0, Math.PI / 2, 0]}>
-              <boxGeometry args={[0.6, 0.02, 0.12]} />
+            <mesh castShadow position={[0, 0, -0.28]} rotation={[0, Math.PI / 2, 0]}>
+              <boxGeometry args={[0.7, 0.02, 0.14]} />
               <meshStandardMaterial color="#d4af37" roughness={0.22} metalness={0.9} />
             </mesh>
           </group>

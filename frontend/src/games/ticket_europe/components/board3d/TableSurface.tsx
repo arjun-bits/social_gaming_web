@@ -16,8 +16,8 @@ interface PlankData {
 
 export const TableSurface = React.memo(function TableSurface() {
   const planks = useMemo<PlankData[]>(() => {
-    return Array.from({ length: 28 }, (_, i) => {
-      const xPos = (i - 13.5) * 5.1;
+    return Array.from({ length: 42 }, (_, i) => {
+      const xPos = (i - 20.5) * 5.1;
       const index = Math.floor(Math.abs(Math.sin(i * 12.7) * SHADES.length)) % SHADES.length;
       return { xPos, color: SHADES[index] };
     });
@@ -36,8 +36,8 @@ export const TableSurface = React.memo(function TableSurface() {
   return (
     <group position={[0, -0.42, 0]}>
       {/* Base Planks — 1 draw call for all 28 */}
-      <Instances limit={30} range={planks.length}>
-        <planeGeometry args={[5.0, 100]} />
+      <Instances limit={45} range={planks.length} frustumCulled={false}>
+        <planeGeometry args={[5.0, 150]} />
         <meshStandardMaterial roughness={0.85} metalness={0.06} />
         {planks.map((p, i) => (
           <Instance
@@ -50,8 +50,8 @@ export const TableSurface = React.memo(function TableSurface() {
       </Instances>
 
       {/* Grain Lines — 1 draw call for all 56 */}
-      <Instances limit={60} range={grainLines.length}>
-        <planeGeometry args={[0.07, 100]} />
+      <Instances limit={90} range={grainLines.length} frustumCulled={false}>
+        <planeGeometry args={[0.07, 150]} />
         <meshStandardMaterial color={GRAIN_COLOR} roughness={0.9} transparent opacity={0.35} />
         {grainLines.map((g, i) => (
           <Instance

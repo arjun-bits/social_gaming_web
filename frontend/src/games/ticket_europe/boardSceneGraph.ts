@@ -81,10 +81,10 @@ export interface ElevationSample {
 
 const BOARD_W = 1000;
 const BOARD_H = 800;
-const WORLD_W = 36;   // X: -18 to +18
-const WORLD_D = 26;   // Z: -13 to +13
-const HALF_W  = WORLD_W / 2;  // 18
-const HALF_D  = WORLD_D / 2;  // 13
+const WORLD_W = 54;   // X: -27 to +27  (1.5x scale for spacing)
+const WORLD_D = 39;   // Z: -19.5 to +19.5
+const HALF_W  = WORLD_W / 2;  // 27
+const HALF_D  = WORLD_D / 2;  // 19.5
 
 // Slot layout constant (fraction of total length used for inter-slot gaps)
 const SLOT_GAP_F = 0.22;
